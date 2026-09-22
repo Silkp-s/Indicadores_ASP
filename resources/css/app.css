@@ -6,4 +6,18 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Paleta institucional (mantenedores, sidebar, estados) */
+    --color-brand-950: #16302b;
+    --color-brand-800: #1f4b43;
+    --color-brand-100: #e6f0ec;
+
+    --color-accent-500: #c98a3c;
+
+    --color-status-ok-bg: #eaf6f0;
+    --color-status-ok-fg: #1f7a55;
+    --color-status-warn-bg: #fcf3de;
+    --color-status-warn-fg: #9a7412;
+    --color-status-bad-bg: #fbeee9;
+    --color-status-bad-fg: #b0431f;
 }
