@@ -34,7 +34,7 @@ Route::get('/password/request', function () {
 Route::middleware([/* auth, control de acceso */])->group(function () {
 
     Route::get('/centro-mando', function () {
-        return view('welcome'); // TODO: vista del Centro de Mando (bosquejo compartido en Trello)
+        return view('centro-mando.index');
     })->name('centro-mando');
 
     Route::get('/indicadores', function () {
