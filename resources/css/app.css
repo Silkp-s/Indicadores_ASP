@@ -6,4 +6,18 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Paleta institucional (mantenedores, sidebar, estados) — ajustada según referencia Droguería DAS */
+    --color-brand-950: #0f1424;
+    --color-brand-800: #1b2438;
+    --color-brand-100: #e8eefc;
+
+    --color-accent-500: #2f6fed;
+
+    --color-status-ok-bg: #e7f9ef;
+    --color-status-ok-fg: #16a34a;
+    --color-status-warn-bg: #fff4e5;
+    --color-status-warn-fg: #f97316;
+    --color-status-bad-bg: #fdedec;
+    --color-status-bad-fg: #e11d2e;
 }
