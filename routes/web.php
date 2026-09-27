@@ -2,9 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+##Route::get('/', function () {
+#    return view('welcome');
+#});
 
 /*
 |--------------------------------------------------------------------------
@@ -15,11 +15,11 @@ Route::get('/', function () {
 | módulo se conectan aparte; estas quedan reemplazadas cuando eso esté listo.
 */
 
-Route::get('/login', function () {
+Route::get('/', function () {
     return view('auth.login');
 })->name('login');
 
-Route::post('/login', function () {
+Route::post('/', function () {
     return redirect()->route('centro-mando');
 });
 
