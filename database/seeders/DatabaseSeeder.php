@@ -17,9 +17,12 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
+        // firstOrCreate para que `php artisan db:seed` se pueda volver a correr sin chocar con el email único.
+        User::firstOrCreate(['email' => 'test@example.com'], [
             'name' => 'Test User',
-            'email' => 'test@example.com',
+            'password' => 'password',
         ]);
+
+        $this->call(IndicadorSeeder::class);
     }
 }

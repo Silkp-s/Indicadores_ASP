@@ -26,7 +26,7 @@ return new class extends Migration
         $table->string('periodicidad'); // Ej: Mensual, Trimestral
         $table->string('fu'); // Ej: REM-P, REM-A, DEIS
         
-        $table->boolean('is_actie')->default(true);
+        $table->boolean('is_active')->default(true);
         });
     }
 
