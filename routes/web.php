@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\IndicadorController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -56,9 +57,12 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
         return view('centro-mando.index');
     })->name('centro-mando');
 
-    Route::get('/indicadores', function () {
-        return view('welcome'); // TODO: Módulo 1 · Catálogo de Indicadores APS
-    })->name('indicadores.index');
+    // Módulo 1 · Catálogo de Indicadores
+    Route::get('/indicadores', [IndicadorController::class, 'index'])->name('indicadores.index');
+    Route::get('/indicadores/exportar', [IndicadorController::class, 'exportar'])->name('indicadores.exportar');
+    Route::post('/indicadores', [IndicadorController::class, 'store'])->name('indicadores.store');
+    Route::put('/indicadores/{indicador}', [IndicadorController::class, 'update'])->name('indicadores.update')->whereNumber('indicador');
+    Route::patch('/indicadores/{indicador}/estado', [IndicadorController::class, 'cambiarEstado'])->name('indicadores.estado')->whereNumber('indicador');
 
     Route::get('/iaaps-metas', function () {
         return view('iaaps-metas.index');
@@ -67,6 +71,18 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::post('/iaaps-metas', function () {
         return redirect()->route('iaaps-metas.index');
     })->name('iaaps-metas.store');
+
+    Route::get('/compromisos', function () {
+        return view('en-construccion', ['titulo' => 'Compromisos']); // TODO: Módulo · Compromisos de Gestión
+    })->name('compromisos.index');
+
+    Route::get('/inteligencia-deis', function () {
+        return view('en-construccion', ['titulo' => 'Inteligencia DEIS']); // TODO: Módulo · Inteligencia DEIS
+    })->name('inteligencia-deis.index');
+
+    Route::get('/alertas', function () {
+        return view('en-construccion', ['titulo' => 'Alertas']); // TODO: Módulo · Alertas
+    })->name('alertas.index');
 
     Route::get('/configuracion', function () {
         return view('welcome'); // TODO: vista de Configuración
