@@ -1,18 +1,13 @@
 <?php
 
+use App\Http\Controllers\AdminController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-
-##Route::get('/', function () {
-#    return view('welcome');
-#});
 
 /*
 |--------------------------------------------------------------------------
-| Rutas placeholder para las vistas maquetadas
+| Rutas de autenticación
 |--------------------------------------------------------------------------
-| Solo para poder navegar el maquetado (route() y el sidebar las necesitan).
-| El login real, el middleware de acceso y los controladores/CRUD de cada
-| módulo se conectan aparte; estas quedan reemplazadas cuando eso esté listo.
 */
 
 Route::get('/', function () {
@@ -20,10 +15,30 @@ Route::get('/', function () {
 })->name('login');
 
 Route::post('/', function () {
-    return redirect()->route('centro-mando');
-});
+    $credentials = request()->only('email', 'password');
+
+    if (Auth::attempt($credentials, request()->boolean('remember'))) {
+        request()->session()->regenerate();
+
+        $user = Auth::user();
+
+        if ($user->hasRole('Admin')) {
+            return redirect()->intended(route('admin.dashboard'));
+        }
+
+        return redirect()->intended(route('centro-mando'));
+    }
+
+    return back()->withErrors([
+        'email' => 'Las credenciales no son correctas.',
+    ])->onlyInput('email');
+})->name('login.post');
 
 Route::post('/logout', function () {
+    Auth::logout();
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+
     return redirect()->route('login');
 })->name('logout');
 
@@ -31,8 +46,12 @@ Route::get('/password/request', function () {
     return view('auth.login'); // TODO: vista de recuperación de contraseña
 })->name('password.request');
 
-Route::middleware([/* auth, control de acceso */])->group(function () {
-
+/*
+|--------------------------------------------------------------------------
+| Rutas protegidas - Usuario regular y Admin (Admin tiene acceso a todo)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::get('/centro-mando', function () {
         return view('centro-mando.index');
     })->name('centro-mando');
@@ -53,3 +72,27 @@ Route::middleware([/* auth, control de acceso */])->group(function () {
         return view('welcome'); // TODO: vista de Configuración
     })->name('configuracion');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Rutas protegidas - Admin
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [AdminController::class, 'index'])->name('dashboard');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Fallback: redirigir según rol si accede a ruta no autorizada
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth')->get('/home', function () {
+    $user = Auth::user();
+
+    if ($user->hasRole('Admin')) {
+        return redirect()->route('admin.dashboard');
+    }
+
+    return redirect()->route('centro-mando');
+})->name('home');
