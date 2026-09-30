@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\AdminController;
-use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\IndicadorController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -11,29 +11,35 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return view('auth.login');
-})->name('login');
+Route::middleware('guest')->group(function () {
+    Route::get('/', function () {
+        return view('auth.login');
+    })->name('login');
 
-Route::post('/', function () {
-    $credentials = request()->only('email', 'password');
+    Route::post('/', function () {
+        $credentials = request()->only('email', 'password');
 
-    if (Auth::attempt($credentials, request()->boolean('remember'))) {
-        request()->session()->regenerate();
+        if (Auth::attempt($credentials, request()->boolean('remember'))) {
+            request()->session()->regenerate();
 
-        $user = Auth::user();
+            $user = Auth::user();
 
-        if ($user->hasRole('Admin')) {
-            return redirect()->intended(route('admin.dashboard'));
+            if ($user->hasRole('Admin')) {
+                return redirect()->intended(route('admin.dashboard'));
+            }
+
+            return redirect()->intended(route('centro-mando'));
         }
 
-        return redirect()->intended(route('centro-mando'));
-    }
+        return back()->withErrors([
+            'email' => 'Las credenciales no son correctas.',
+        ])->onlyInput('email');
+    })->name('login.post');
 
-    return back()->withErrors([
-        'email' => 'Las credenciales no son correctas.',
-    ])->onlyInput('email');
-})->name('login.post');
+    Route::get('/password/request', function () {
+        return view('auth.login'); // TODO: vista de recuperación de contraseña
+    })->name('password.request');
+});
 
 Route::post('/logout', function () {
     Auth::logout();
@@ -42,10 +48,6 @@ Route::post('/logout', function () {
 
     return redirect()->route('login');
 })->name('logout');
-
-Route::get('/password/request', function () {
-    return view('auth.login'); // TODO: vista de recuperación de contraseña
-})->name('password.request');
 
 /*
 |--------------------------------------------------------------------------
@@ -94,8 +96,12 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
 | Rutas protegidas - Admin
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'admin_only'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('dashboard');
+    Route::get('/users/{user}/edit', [AdminController::class, 'edit'])->name('users.edit');
+    Route::put('/users/{user}', [AdminController::class, 'update'])->name('users.update');
+    Route::post('/users/{user}/reset-password', [AdminController::class, 'resetPassword'])->name('users.reset-password');
+    Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');
 });
 
 /*
