@@ -1,8 +1,3 @@
-{{--
-    Modal de Crear/Editar indicador.
-    Toggle con vanilla JS (classList) para no asumir Alpine/Livewire todavía.
-    Si el proyecto ya trae Alpine (Breeze), se puede reemplazar por x-data fácilmente.
---}}
 <div id="modal-indicador" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4">
     <div class="w-full max-w-lg rounded-lg bg-white shadow-xl">
 

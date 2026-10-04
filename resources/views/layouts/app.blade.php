@@ -11,13 +11,10 @@
 
     <div class="flex h-screen overflow-hidden">
 
-        {{-- Sidebar --}}
         @include('layouts.partials.sidebar')
 
-        {{-- Contenido --}}
         <div class="flex flex-1 flex-col overflow-hidden">
 
-            {{-- Barra superior --}}
             <header class="flex h-16 shrink-0 items-center justify-between border-b border-[#E1E7E4] bg-white px-8">
                 <div>
                     <h1 class="text-lg font-semibold text-brand-950">@yield('page-title', 'Inicio')</h1>
@@ -36,7 +33,6 @@
                 </div>
             </header>
 
-            {{-- Área de contenido con scroll propio --}}
             <main class="flex-1 overflow-y-auto px-8 py-8">
                 @if (session('status'))
                     <div class="mb-6 rounded-md border border-[#BFE0D2] bg-status-ok-bg px-4 py-3 text-sm text-brand-950">

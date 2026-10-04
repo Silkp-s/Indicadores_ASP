@@ -1,11 +1,5 @@
-{{--
-    Sidebar principal.
-    Recibe (opcional) la ruta activa vía request()->routeIs() para resaltar el ítem actual.
-    Los íconos son SVG inline (heroicons, outline) para no depender de un paquete extra.
---}}
 <aside class="flex h-screen w-64 flex-col bg-brand-950 text-[#DCE7E2]">
 
-    {{-- Marca --}}
     <div class="flex items-center gap-3 px-6 py-6">
         <div class="flex h-9 w-9 items-center justify-center rounded-md bg-accent-500 text-sm font-semibold text-brand-950">
             DAS
@@ -18,21 +12,9 @@
 
     <div class="mx-6 h-px bg-[#274A41]"></div>
 
-    {{-- Navegación --}}
     <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-6">
 
-        <p class="px-3 pb-2 text-xs font-medium text-[#6F8981]">General</p>
-
-        <a href="{{ route('centro-mando') }}"
-           class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors
-                  {{ request()->routeIs('centro-mando') ? 'bg-brand-800 text-white' : 'text-[#B7C9C2] hover:bg-brand-800/60 hover:text-white' }}">
-            <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7m-14 0v8a1 1 0 001 1h3m10-9l2 2m-2-2v8a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            Centro de mando
-        </a>
-
-        <p class="px-3 pb-2 pt-5 text-xs font-medium text-[#6F8981]">Módulos</p>
+        <p class="px-3 pb-2 text-xs font-medium text-[#6F8981]">Módulos</p>
 
         <a href="{{ route('indicadores.index') }}"
            class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors
@@ -65,7 +47,6 @@
         </a>
     </nav>
 
-    {{-- Usuario / cerrar sesión --}}
     <div class="mx-6 h-px bg-[#274A41]"></div>
     <div class="px-4 py-4">
         <div class="flex items-center gap-3 rounded-md px-2 py-2">

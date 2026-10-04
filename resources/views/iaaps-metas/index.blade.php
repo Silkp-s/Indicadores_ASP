@@ -4,18 +4,9 @@
 @section('page-title', 'Módulo 2 · IAAPS y Metas Sanitarias')
 @section('page-subtitle', 'Mantenedor de indicadores IAAPS y Metas Sanitarias')
 
-{{--
-    NOTA PARA EL EQUIPO:
-    Esta vista cubre SOLO el mantenedor (listado + alta/edición/eliminación).
-    El navbar/sidebar ya viene del layout (layouts.app) y los gráficos
-    (cumplimiento anual, comparativa) van en un componente aparte — no están
-    incluidos aquí a propósito.
---}}
-
 @section('content')
 <div class="space-y-6">
 
-    {{-- Barra de filtros --}}
     <div class="flex flex-wrap items-center gap-3 rounded-md border border-[#E1E7E4] bg-white p-4">
 
         <div class="relative flex-1 min-w-[220px]">
@@ -59,7 +50,6 @@
         </button>
     </div>
 
-    {{-- Tabla / Mantenedor --}}
     <div class="overflow-hidden rounded-md border border-[#E1E7E4] bg-white">
         <table class="w-full text-left text-sm">
             <thead class="bg-[#F4F6F5] text-xs font-medium uppercase tracking-wide text-[#6B7A75]">
@@ -132,7 +122,6 @@
             </tbody>
         </table>
 
-        {{-- Paginación --}}
         <div class="flex items-center justify-between border-t border-[#E1E7E4] px-5 py-3 text-sm text-[#6B7A75]">
             <span>Mostrando 4 de 128 indicadores</span>
             <div class="flex items-center gap-1">

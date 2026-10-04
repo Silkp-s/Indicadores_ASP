@@ -5,10 +5,8 @@
 @section('content')
 <div class="flex min-h-screen">
 
-    {{-- Panel institucional --}}
     <div class="relative hidden w-1/2 flex-col justify-between bg-brand-950 px-14 py-12 text-[#DCE7E2] lg:flex">
 
-        {{-- Patrón geométrico sutil de fondo --}}
         <svg class="pointer-events-none absolute inset-0 h-full w-full opacity-[0.06]" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
@@ -39,7 +37,6 @@
         </p>
     </div>
 
-    {{-- Formulario --}}
     <div class="flex w-full items-center justify-center px-6 py-12 lg:w-1/2">
         <div class="w-full max-w-sm">
 
