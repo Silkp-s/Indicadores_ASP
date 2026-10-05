@@ -87,7 +87,7 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     })->name('alertas.index');
 
     Route::get('/configuracion', function () {
-        return view('welcome'); // TODO: vista de Configuración
+        return view('en-construccion', ['titulo' => 'Configuración']); // TODO: vista de Configuración
     })->name('configuracion');
 });
 
@@ -98,6 +98,8 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
 */
 Route::middleware(['auth', 'admin_only'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('dashboard');
+    Route::get('/users/create', [AdminController::class, 'create'])->name('users.create');
+    Route::post('/users', [AdminController::class, 'store'])->name('users.store');
     Route::get('/users/{user}/edit', [AdminController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [AdminController::class, 'update'])->name('users.update');
     Route::post('/users/{user}/reset-password', [AdminController::class, 'resetPassword'])->name('users.reset-password');

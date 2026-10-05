@@ -1,30 +1,16 @@
 @extends('layouts.app')
 
-@section('title', 'Editar Usuario')
-@section('page-title', 'Editar Usuario')
-@section('page-subtitle', 'Modifica los datos y roles del usuario')
+@section('title', 'Crear Usuario')
+@section('page-title', 'Crear Usuario')
+@section('page-subtitle', 'Registra un nuevo usuario en el sistema')
 
 @section('content')
 <div class="max-w-2xl mx-auto space-y-6">
 
-    {{-- Información del usuario --}}
+    {{-- Formulario de creación --}}
     <div class="rounded-md border border-[#E1E7E4] bg-white p-6">
-        <div class="flex items-center gap-4">
-            <div class="flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 text-xl font-semibold text-brand-950">
-                {{ Str::upper(Str::substr($user->name, 0, 1)) }}
-            </div>
-            <div>
-                <h2 class="text-lg font-semibold text-brand-950">{{ $user->name }} {{ $user->apellido }}</h2>
-                <p class="text-sm text-[#6B7A75]">{{ $user->email }}</p>
-            </div>
-        </div>
-    </div>
-
-    {{-- Formulario de edición --}}
-    <div class="rounded-md border border-[#E1E7E4] bg-white p-6">
-        <form method="POST" action="{{ route('admin.users.update', $user) }}" class="space-y-5">
+        <form method="POST" action="{{ route('admin.users.store') }}" class="space-y-5">
             @csrf
-            @method('PUT')
 
             {{-- Nombre --}}
             <div>
@@ -33,8 +19,9 @@
                     id="name"
                     type="text"
                     name="name"
-                    value="{{ old('name', $user->name) }}"
+                    value="{{ old('name') }}"
                     required
+                    autofocus
                     class="mt-1.5 block w-full rounded-md border border-[#D7DEDB] bg-white px-3 py-2.5 text-sm text-[#1C2A26] placeholder:text-[#9AA6A1] focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20"
                 >
                 @error('name')
@@ -49,7 +36,7 @@
                     id="apellido"
                     type="text"
                     name="apellido"
-                    value="{{ old('apellido', $user->apellido) }}"
+                    value="{{ old('apellido') }}"
                     required
                     class="mt-1.5 block w-full rounded-md border border-[#D7DEDB] bg-white px-3 py-2.5 text-sm text-[#1C2A26] placeholder:text-[#9AA6A1] focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20"
                 >
@@ -65,7 +52,7 @@
                     id="email"
                     type="email"
                     name="email"
-                    value="{{ old('email', $user->email) }}"
+                    value="{{ old('email') }}"
                     required
                     class="mt-1.5 block w-full rounded-md border border-[#D7DEDB] bg-white px-3 py-2.5 text-sm text-[#1C2A26] placeholder:text-[#9AA6A1] focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20"
                 >
@@ -74,9 +61,41 @@
                 @enderror
             </div>
 
+            {{-- Contraseña --}}
+            <div>
+                <label for="password" class="block text-sm font-medium text-[#1C2A26]">Contraseña</label>
+                <input
+                    id="password"
+                    type="password"
+                    name="password"
+                    required
+                    autocomplete="new-password"
+                    class="mt-1.5 block w-full rounded-md border border-[#D7DEDB] bg-white px-3 py-2.5 text-sm text-[#1C2A26] placeholder:text-[#9AA6A1] focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20"
+                >
+                @error('password')
+                    <p class="mt-1 text-sm text-status-bad-fg">{{ $message }}</p>
+                @enderror
+            </div>
+
+            {{-- Confirmar contraseña --}}
+            <div>
+                <label for="password_confirmation" class="block text-sm font-medium text-[#1C2A26]">Confirmar contraseña</label>
+                <input
+                    id="password_confirmation"
+                    type="password"
+                    name="password_confirmation"
+                    required
+                    autocomplete="new-password"
+                    class="mt-1.5 block w-full rounded-md border border-[#D7DEDB] bg-white px-3 py-2.5 text-sm text-[#1C2A26] placeholder:text-[#9AA6A1] focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20"
+                >
+                @error('password_confirmation')
+                    <p class="mt-1 text-sm text-status-bad-fg">{{ $message }}</p>
+                @enderror
+            </div>
+
             {{-- Roles --}}
             <div>
-                <label class="block text-sm font-medium text-[#1C2A26]">Roles</label>
+                <label class="block text-sm font-medium text-[#1C2A26]">Roles <span class="text-status-bad-fg">*</span></label>
                 <div class="mt-2 space-y-2">
                     @foreach (['Admin', 'Usuario'] as $roleName)
                         <label class="flex items-center gap-3 rounded-md border border-[#E1E7E4] bg-white px-3 py-2.5 cursor-pointer hover:bg-[#F9FBFA] transition-colors">
@@ -84,7 +103,6 @@
                                 type="checkbox"
                                 name="roles[]"
                                 value="{{ $roleName }}"
-                               
                                 class="h-4 w-4 rounded border-[#D7DEDB] text-brand-800 focus:ring-brand-800/30"
                             >
                             <span class="text-sm text-[#4C5B56]">{{ $roleName }}</span>
@@ -112,56 +130,9 @@
                     type="submit"
                     class="rounded-md bg-brand-950 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-800"
                 >
-                    Guardar cambios
+                    Crear usuario
                 </button>
             </div>
-        </form>
-    </div>
-
-    {{-- Restablecer contraseña --}}
-    <div class="rounded-md border border-[#E1E7E4] bg-status-warn-bg/30 p-6">
-        <h3 class="text-sm font-semibold text-status-warn-fg">Restablecer contraseña</h3>
-        <p class="mt-1 text-sm text-[#6B7A75]">Genera una nueva contraseña para este usuario. La anterior dejará de funcionar.</p>
-
-        <form method="POST" action="{{ route('admin.users.reset-password', $user) }}" class="mt-4 space-y-4">
-            @csrf
-
-            <div>
-                <label for="password" class="block text-sm font-medium text-[#1C2A26]">Nueva contraseña</label>
-                <input
-                    id="password"
-                    type="password"
-                    name="password"
-                    required
-                    autocomplete="new-password"
-                    class="mt-1.5 block w-full rounded-md border border-[#D7DEDB] bg-white px-3 py-2.5 text-sm text-[#1C2A26] placeholder:text-[#9AA6A1] focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20"
-                >
-                @error('password')
-                    <p class="mt-1 text-sm text-status-bad-fg">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div>
-                <label for="password_confirmation" class="block text-sm font-medium text-[#1C2A26]">Confirmar contraseña</label>
-                <input
-                    id="password_confirmation"
-                    type="password"
-                    name="password_confirmation"
-                    required
-                    autocomplete="new-password"
-                    class="mt-1.5 block w-full rounded-md border border-[#D7DEDB] bg-white px-3 py-2.5 text-sm text-[#1C2A26] placeholder:text-[#9AA6A1] focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20"
-                >
-                @error('password_confirmation')
-                    <p class="mt-1 text-sm text-status-bad-fg">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <button
-                type="submit"
-                class="rounded-md bg-status-warn-fg px-4 py-2 text-sm font-medium text-white hover:bg-status-warn-fg/90 transition-colors"
-            >
-                Restablecer contraseña
-            </button>
         </form>
     </div>
 

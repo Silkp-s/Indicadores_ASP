@@ -14,15 +14,14 @@
             <p class="text-sm text-[#6B7A75]">Administra los accesos y roles del sistema</p>
         </div>
         <div class="flex items-center gap-3">
-            <button
-                type="button"
+            <a href="{{ route('admin.users.create') }}"
                 class="flex items-center gap-2 rounded-md bg-brand-950 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800"
             >
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
                 Nuevo usuario
-            </button>
+            </a>
         </div>
     </div>
 
@@ -48,7 +47,7 @@
                                     {{ Str::upper(Str::substr($user->name, 0, 1)) }}
                                 </div>
                                 <div>
-                                    <p class="text-sm font-medium text-brand-950">{{ $user->name }}</p>
+                                    <p class="text-sm font-medium text-brand-950">{{ $user->name }} {{ $user->apellido }}</p>
                                 </div>
                             </div>
                         </td>

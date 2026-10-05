@@ -16,6 +16,36 @@ class AdminController extends Controller
         return view('admin.dashboard', compact('users'));
     }
 
+    public function create()
+    {
+        return view('admin.users.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'apellido' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email',
+            'password' => ['required', 'confirmed', Password::defaults()],
+            'roles' => 'required|array',
+            'roles.*' => 'exists:roles,name',
+        ]);
+
+        $user = User::create([
+            'name' => $request->name,
+            'apellido' => $request->apellido,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'email_verified_at' => now(),
+        ]);
+
+        $user->syncRoles($request->roles);
+
+        return redirect()->route('admin.dashboard')
+            ->with('status', "Usuario {$user->name} {$user->apellido} creado correctamente.");
+    }
+
     public function edit(User $user)
     {
         return view('admin.users.edit', compact('user'));
@@ -25,6 +55,7 @@ class AdminController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'apellido' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
             'roles' => 'array',
             'roles.*' => 'exists:roles,name',
@@ -32,6 +63,7 @@ class AdminController extends Controller
 
         $user->update([
             'name' => $request->name,
+            'apellido' => $request->apellido,
             'email' => $request->email,
         ]);
 
