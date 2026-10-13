@@ -2,7 +2,7 @@
 
 @section('title', 'Importación Masiva REM')
 @section('page-title', 'Módulo de Importación REM')
-@section('page-subtitle', 'Procesamiento de planillas oficiales MINSAL (Serie A / Serie P) y cálculo de Metas Sanitarias Ley 19.813')
+@section('page-subtitle', 'Procesamiento de planillas oficiales MINSAL (Serie A / Serie P) y cálculo de Metas Sanitarias Ley 19.813 e IAAPS 2025')
 
 @section('content')
 <div class="space-y-8">
@@ -17,7 +17,11 @@
                 </span>
             </div>
             <p class="mt-2 text-2xl font-bold text-brand-950" id="stat-total">{{ $stats['total_mediciones'] }}</p>
-            <p class="mt-1 text-xs text-[#94A3B8]">Mediciones acumuladas</p>
+            <div class="mt-1 flex items-center gap-2 text-xs text-[#64748B]">
+                <span>Metas: <strong class="text-brand-950" id="stat-metas">{{ $stats['total_metas'] }}</strong></span>
+                <span>&bull;</span>
+                <span>IAAPS: <strong class="text-brand-950" id="stat-iaaps">{{ $stats['total_iaaps'] }}</strong></span>
+            </div>
         </div>
 
         <div class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs">
@@ -116,6 +120,30 @@
                 </div>
             </div>
 
+            {{-- Opciones de Alcance de Evaluación --}}
+            <div class="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] p-3 text-sm">
+                <div class="flex items-center gap-2">
+                    <svg class="h-4 w-4 text-[#64748B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    <span class="text-xs font-bold uppercase tracking-wider text-[#475569]">Alcance de Evaluación:</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-brand-950 shadow-xs has-[:checked]:border-accent-600 has-[:checked]:bg-[#EEF5FF] has-[:checked]:text-accent-700 transition-all">
+                        <input type="radio" name="tipo_indicadores" value="todas" checked class="text-accent-600 focus:ring-accent-500">
+                        <span>Todas (Metas + IAAPS 2025)</span>
+                    </label>
+                    <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-brand-950 shadow-xs has-[:checked]:border-accent-600 has-[:checked]:bg-[#EEF5FF] has-[:checked]:text-accent-700 transition-all">
+                        <input type="radio" name="tipo_indicadores" value="metas" class="text-accent-600 focus:ring-accent-500">
+                        <span>Solo Metas Sanitarias (Ley 19.813)</span>
+                    </label>
+                    <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-brand-950 shadow-xs has-[:checked]:border-accent-600 has-[:checked]:bg-[#EEF5FF] has-[:checked]:text-accent-700 transition-all">
+                        <input type="radio" name="tipo_indicadores" value="iaaps" class="text-accent-600 focus:ring-accent-500">
+                        <span>Solo IAAPS 2025</span>
+                    </label>
+                </div>
+            </div>
+
             {{-- Barra de acción --}}
             <div class="flex items-center justify-end gap-3 pt-2">
                 <button
@@ -128,7 +156,7 @@
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                     </svg>
-                    <span id="btn-text">Procesar y Proyectar Metas</span>
+                    <span id="btn-text">Procesar y Proyectar Indicadores</span>
                 </button>
             </div>
         </form>
@@ -178,10 +206,10 @@
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h2 class="text-xl font-bold uppercase tracking-tight text-brand-950">
-                    Resultados de Cumplimiento · Metas Sanitarias 2026
+                    Resultados de Cumplimiento · Metas Sanitarias e IAAPS 2025
                 </h2>
                 <p class="text-sm text-[#64748B]">
-                    Mediciones calculadas según Ley 19.813 a partir de la planilla consolidada y datos demográficos FONASA.
+                    Mediciones calculadas según Ley 19.813 e Indicadores IAAPS 2025 a partir de la planilla oficial y datos demográficos FONASA.
                 </p>
             </div>
             <button
@@ -196,14 +224,30 @@
             </button>
         </div>
 
+        {{-- Pestañas / Filtro de Resultados --}}
+        <div class="flex border-b border-[#E2E8F0] gap-2">
+            <button type="button" class="tab-filter-btn flex items-center gap-2 border-b-2 border-brand-950 px-4 py-2.5 text-sm font-bold text-brand-950 transition-colors" data-filter="todas">
+                <span>Todos los Indicadores</span>
+                <span id="badge-count-todas" class="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-800">0</span>
+            </button>
+            <button type="button" class="tab-filter-btn flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-[#64748B] hover:text-brand-950 transition-colors" data-filter="metas">
+                <span>Metas Sanitarias (Ley 19.813)</span>
+                <span id="badge-count-metas" class="rounded-full bg-[#E2E8F0] px-2 py-0.5 text-xs font-semibold text-[#475569]">0</span>
+            </button>
+            <button type="button" class="tab-filter-btn flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-[#64748B] hover:text-brand-950 transition-colors" data-filter="iaaps">
+                <span>IAAPS 2025</span>
+                <span id="badge-count-iaaps" class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">0</span>
+            </button>
+        </div>
+
         {{-- Gráficos ApexCharts --}}
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {{-- Gráfico 1: Cumplimiento vs Meta (Barras) --}}
             <div class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs lg:col-span-2">
                 <div class="mb-4 flex items-center justify-between">
                     <div>
-                        <h3 class="text-base font-bold text-brand-950">Avance de Metas Sanitarias vs Objetivo</h3>
-                        <p class="text-xs text-[#64748B]">Comparativa porcentual por código de indicador Ley 19.813</p>
+                        <h3 class="text-base font-bold text-brand-950">Avance vs Objetivo Nacional / Comunal</h3>
+                        <p class="text-xs text-[#64748B]">Comparativa porcentual o tasa por indicador (Ley 19.813 / IAAPS 2025)</p>
                     </div>
                     <span class="rounded bg-brand-100 px-2 py-1 text-xs font-semibold text-brand-800">ApexCharts</span>
                 </div>
@@ -214,7 +258,7 @@
             <div class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs">
                 <div class="mb-4">
                     <h3 class="text-base font-bold text-brand-950">Distribución de Cumplimiento</h3>
-                    <p class="text-xs text-[#64748B]">Proporción de metas según regla de estado</p>
+                    <p class="text-xs text-[#64748B]">Proporción de indicadores según regla de estado</p>
                 </div>
                 <div id="chart-donut" class="flex min-h-[320px] items-center justify-center"></div>
             </div>
@@ -231,6 +275,7 @@
                 <table class="w-full text-left text-sm">
                     <thead class="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wider text-[#64748B]">
                         <tr>
+                            <th class="px-6 py-3.5">Tipo</th>
                             <th class="px-6 py-3.5">Código</th>
                             <th class="px-6 py-3.5">Indicador / Meta Sanitaria</th>
                             <th class="px-6 py-3.5 text-right">Numerador</th>
@@ -265,6 +310,7 @@
             <table class="w-full text-left text-sm">
                 <thead class="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wider text-[#64748B]">
                     <tr>
+                        <th class="px-6 py-3">Tipo</th>
                         <th class="px-6 py-3">Establecimiento</th>
                         <th class="px-6 py-3">Indicador</th>
                         <th class="px-6 py-3 text-center">Periodo</th>
@@ -278,6 +324,13 @@
                 <tbody class="divide-y divide-[#F1F5F9]">
                     @forelse ($medidasRecientes as $medida)
                         <tr class="hover:bg-[#F8FAFC]">
+                            <td class="px-6 py-3">
+                                @if (($medida->indicador->tipo ?? '') === 'IAAPS')
+                                    <span class="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">IAAPS</span>
+                                @else
+                                    <span class="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">Meta</span>
+                                @endif
+                            </td>
                             <td class="px-6 py-3 font-medium text-brand-950">
                                 {{ $medida->establecimiento->nombre ?? 'N/A' }}
                             </td>
@@ -312,7 +365,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-6 py-8 text-center text-sm text-[#94A3B8]">
+                            <td colspan="9" class="px-6 py-8 text-center text-sm text-[#94A3B8]">
                                 Aún no se han registrado mediciones. Sube un archivo REM arriba para comenzar.
                             </td>
                         </tr>
@@ -412,6 +465,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const formData = new FormData();
         formData.append('archivo', currentFile);
+        const tipoIndicadores = document.querySelector('input[name="tipo_indicadores"]:checked')?.value || 'todas';
+        formData.append('tipo_indicadores', tipoIndicadores);
         if (overrideEstablecimientoId) {
             formData.append('establecimiento_id', overrideEstablecimientoId);
         }
@@ -615,6 +670,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Actualizar tarjetas de estadísticas
             if (data.totales) {
+                const elMetas = document.getElementById('stat-metas');
+                if (elMetas && data.totales.metas_count !== undefined) {
+                    elMetas.textContent = (parseInt(elMetas.textContent || '0') + data.totales.metas_count).toString();
+                }
+                const elIaaps = document.getElementById('stat-iaaps');
+                if (elIaaps && data.totales.iaaps_count !== undefined) {
+                    elIaaps.textContent = (parseInt(elIaaps.textContent || '0') + data.totales.iaaps_count).toString();
+                }
+
                 document.getElementById('stat-total').textContent = (parseInt(document.getElementById('stat-total').textContent) + data.totales.total).toString();
                 document.getElementById('stat-cumpliendo').textContent = (parseInt(document.getElementById('stat-cumpliendo').textContent) + data.totales.cumpliendo).toString();
                 document.getElementById('stat-riesgo').textContent = (parseInt(document.getElementById('stat-riesgo').textContent) + data.totales.en_riesgo).toString();
@@ -625,7 +689,7 @@ document.addEventListener('DOMContentLoaded', () => {
             Swal.fire({
                 icon: 'success',
                 title: '¡Importación Exitosa!',
-                text: `${data.medidas.length} Metas Sanitarias calculadas y almacenadas para ${data.establecimiento.nombre}.`,
+                text: `${data.medidas.length} Indicadores (Metas Sanitarias e IAAPS 2025) calculados y almacenados para ${data.establecimiento.nombre}.`,
                 timer: 3000,
                 showConfirmButton: true,
                 confirmButtonColor: '#2f6fed'
@@ -656,49 +720,111 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('metadata-banner').classList.remove('hidden');
     }
 
+    // Estado global de resultados para filtrado interactivo por pestañas
+    let currentResultadosData = null;
+    let activeFilter = 'todas';
+
+    // Manejo de clics en las pestañas de filtro
+    document.querySelectorAll('.tab-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const filtro = btn.getAttribute('data-filter');
+            aplicarFiltroResultados(filtro);
+        });
+    });
+
+    function aplicarFiltroResultados(filtro) {
+        activeFilter = filtro;
+
+        document.querySelectorAll('.tab-filter-btn').forEach(btn => {
+            const f = btn.getAttribute('data-filter');
+            if (f === filtro) {
+                btn.className = 'tab-filter-btn flex items-center gap-2 border-b-2 border-brand-950 px-4 py-2.5 text-sm font-bold text-brand-950 transition-colors';
+            } else {
+                btn.className = 'tab-filter-btn flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-[#64748B] hover:text-brand-950 transition-colors';
+            }
+        });
+
+        if (!currentResultadosData) return;
+
+        let filteredMedidas = currentResultadosData.medidas;
+        if (filtro === 'metas') {
+            filteredMedidas = currentResultadosData.medidas.filter(m => m.tipo === 'Meta Sanitaria');
+        } else if (filtro === 'iaaps') {
+            filteredMedidas = currentResultadosData.medidas.filter(m => m.tipo === 'IAAPS');
+        }
+
+        renderizarTablaYGraficos(filteredMedidas);
+    }
+
     function renderizarResultados(data) {
+        currentResultadosData = data;
         const sectionResultados = document.getElementById('section-resultados');
         sectionResultados.classList.remove('hidden');
 
+        // Contadores en las pestañas
+        const countTodas = data.medidas.length;
+        const countMetas = data.medidas.filter(m => m.tipo === 'Meta Sanitaria').length;
+        const countIaaps = data.medidas.filter(m => m.tipo === 'IAAPS').length;
+
+        document.getElementById('badge-count-todas').textContent = countTodas;
+        document.getElementById('badge-count-metas').textContent = countMetas;
+        document.getElementById('badge-count-iaaps').textContent = countIaaps;
+
+        aplicarFiltroResultados(activeFilter || 'todas');
+
+        // Scroll suave hacia los resultados
+        sectionResultados.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function renderizarTablaYGraficos(medidas) {
         // Población de la tabla
         const tbody = document.getElementById('tabla-resultados-body');
         tbody.innerHTML = '';
 
-        data.medidas.forEach(m => {
-            let statusBadge = '';
-            let progressColor = 'bg-[#16A34A]';
+        if (medidas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-8 text-center text-sm text-[#94A3B8]">No hay indicadores para la pestaña seleccionada.</td></tr>';
+        } else {
+            medidas.forEach(m => {
+                let statusBadge = '';
+                let progressColor = 'bg-[#16A34A]';
 
-            if (m.estado === 'Cumpliendo') {
-                statusBadge = '<span class="inline-flex rounded-full bg-[#E7F9EF] px-2.5 py-0.5 text-xs font-semibold text-[#16A34A]">Cumpliendo</span>';
-                progressColor = 'bg-[#16A34A]';
-            } else if (m.estado === 'En Riesgo') {
-                statusBadge = '<span class="inline-flex rounded-full bg-[#FFF4E5] px-2.5 py-0.5 text-xs font-semibold text-[#F97316]">En Riesgo</span>';
-                progressColor = 'bg-[#F97316]';
-            } else {
-                statusBadge = '<span class="inline-flex rounded-full bg-[#FDEDEC] px-2.5 py-0.5 text-xs font-semibold text-[#E11D2E]">Crítico</span>';
-                progressColor = 'bg-[#E11D2E]';
-            }
+                if (m.estado === 'Cumpliendo') {
+                    statusBadge = '<span class="inline-flex rounded-full bg-[#E7F9EF] px-2.5 py-0.5 text-xs font-semibold text-[#16A34A]">Cumpliendo</span>';
+                    progressColor = 'bg-[#16A34A]';
+                } else if (m.estado === 'En Riesgo') {
+                    statusBadge = '<span class="inline-flex rounded-full bg-[#FFF4E5] px-2.5 py-0.5 text-xs font-semibold text-[#F97316]">En Riesgo</span>';
+                    progressColor = 'bg-[#F97316]';
+                } else {
+                    statusBadge = '<span class="inline-flex rounded-full bg-[#FDEDEC] px-2.5 py-0.5 text-xs font-semibold text-[#E11D2E]">Crítico</span>';
+                    progressColor = 'bg-[#E11D2E]';
+                }
 
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-[#F8FAFC] transition-colors';
-            tr.innerHTML = `
-                <td class="px-6 py-4 font-mono font-bold text-brand-950">${m.codigo}</td>
-                <td class="px-6 py-4 font-medium text-[#334155]">${m.nombre}</td>
-                <td class="px-6 py-4 text-right font-mono text-[#334155]">${Number(m.numerador).toLocaleString('es-CL')}</td>
-                <td class="px-6 py-4 text-right font-mono text-[#334155]">${Number(m.denominador).toLocaleString('es-CL')}</td>
-                <td class="px-6 py-4 text-center">
-                    <div class="flex items-center justify-center gap-2">
-                        <div class="h-2 w-20 overflow-hidden rounded-full bg-[#E2E8F0]">
-                            <div class="h-full rounded-full ${progressColor}" style="width: ${Math.min(m.porcentaje, 100)}%"></div>
+                const tipoBadge = m.tipo === 'IAAPS'
+                    ? '<span class="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">IAAPS</span>'
+                    : '<span class="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">Meta</span>';
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-[#F8FAFC] transition-colors';
+                tr.innerHTML = `
+                    <td class="px-6 py-4">${tipoBadge}</td>
+                    <td class="px-6 py-4 font-mono font-bold text-brand-950">${m.codigo}</td>
+                    <td class="px-6 py-4 font-medium text-[#334155]">${m.nombre}</td>
+                    <td class="px-6 py-4 text-right font-mono text-[#334155]">${Number(m.numerador).toLocaleString('es-CL')}</td>
+                    <td class="px-6 py-4 text-right font-mono text-[#334155]">${Number(m.denominador).toLocaleString('es-CL')}</td>
+                    <td class="px-6 py-4 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <div class="h-2 w-20 overflow-hidden rounded-full bg-[#E2E8F0]">
+                                <div class="h-full rounded-full ${progressColor}" style="width: ${Math.min(m.porcentaje, 100)}%"></div>
+                            </div>
+                            <span class="font-bold text-brand-950">${m.porcentaje.toFixed(2)}%</span>
                         </div>
-                        <span class="font-bold text-brand-950">${m.porcentaje.toFixed(2)}%</span>
-                    </div>
-                </td>
-                <td class="px-6 py-4 text-center font-semibold text-[#64748B]">${m.objetivo.toFixed(1)}%</td>
-                <td class="px-6 py-4 text-center">${statusBadge}</td>
-            `;
-            tbody.appendChild(tr);
-        });
+                    </td>
+                    <td class="px-6 py-4 text-center font-semibold text-[#64748B]">${m.objetivo.toFixed(1)}%</td>
+                    <td class="px-6 py-4 text-center">${statusBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
 
         // Gráfico ApexCharts 1: Barras comparativas
         if (chartBarras) {
@@ -709,11 +835,11 @@ document.addEventListener('DOMContentLoaded', () => {
             series: [
                 {
                     name: 'Cumplimiento Actual (%)',
-                    data: data.chart.cumplimiento
+                    data: medidas.map(m => m.porcentaje)
                 },
                 {
-                    name: 'Meta Nacional (%)',
-                    data: data.chart.objetivos
+                    name: 'Meta Nacional / Comunal (%)',
+                    data: medidas.map(m => m.objetivo)
                 }
             ],
             chart: {
@@ -738,13 +864,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 colors: ['transparent']
             },
             xaxis: {
-                categories: data.chart.categories,
+                categories: medidas.map(m => m.codigo),
                 labels: {
                     style: { colors: '#64748B', fontWeight: 600 }
                 }
             },
             yaxis: {
-                title: { text: 'Porcentaje (%)' },
+                title: { text: 'Porcentaje / Tasa' },
                 max: 120,
                 labels: {
                     formatter: (val) => val.toFixed(0) + '%'
@@ -771,8 +897,13 @@ document.addEventListener('DOMContentLoaded', () => {
             chartDonut.destroy();
         }
 
+        const totalItems = medidas.length;
+        const cumpliendo = medidas.filter(m => m.estado === 'Cumpliendo').length;
+        const enRiesgo = medidas.filter(m => m.estado === 'En Riesgo').length;
+        const critico = medidas.filter(m => m.estado === 'Crítico').length;
+
         const donutOptions = {
-            series: [data.totales.cumpliendo, data.totales.en_riesgo, data.totales.critico],
+            series: [cumpliendo, enRiesgo, critico],
             labels: ['Cumpliendo', 'En Riesgo', 'Crítico'],
             chart: {
                 type: 'donut',
@@ -795,8 +926,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             show: true,
                             total: {
                                 show: true,
-                                label: 'Metas',
-                                formatter: () => data.totales.total
+                                label: 'Indicadores',
+                                formatter: () => totalItems
                             }
                         }
                     }
@@ -806,9 +937,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         chartDonut = new ApexCharts(document.querySelector("#chart-donut"), donutOptions);
         chartDonut.render();
-
-        // Scroll suave hacia los resultados
-        sectionResultados.scrollIntoView({ behavior: 'smooth' });
     }
 
     function setLoading(isLoading) {
@@ -819,7 +947,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             btnProcesar.disabled = false;
             spinner.classList.add('hidden');
-            btnText.textContent = 'Procesar y Proyectar Metas';
+            btnText.textContent = 'Procesar y Proyectar Indicadores';
         }
     }
 });

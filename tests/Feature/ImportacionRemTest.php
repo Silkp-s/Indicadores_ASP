@@ -60,6 +60,61 @@ beforeEach(function () {
             'fu' => 'REM-A',
             'is_active' => true,
         ]),
+        Indicador::create([
+            'codigo' => 'IAAPS-03',
+            'nombre' => 'Tasa de consultas médicas de morbilidad',
+            'tipo' => 'IAAPS',
+            'numerador_description' => 'Consultas de morbilidad realizadas por profesional médico',
+            'denominador_description' => 'Población inscrita validada',
+            'target_value' => 1.25,
+            'periodicidad' => 'Mensual',
+            'fu' => 'REM-A',
+            'is_active' => true,
+        ]),
+        Indicador::create([
+            'codigo' => 'IAAPS-04',
+            'nombre' => 'Porcentaje de derivación al nivel secundario',
+            'tipo' => 'IAAPS',
+            'numerador_description' => 'N° SIC de controles y consultas médicas generadas en APS',
+            'denominador_description' => 'N° total de controles y consultas médicas realizadas en APS',
+            'target_value' => 10.00,
+            'periodicidad' => 'Mensual',
+            'fu' => 'REM-A',
+            'is_active' => true,
+        ]),
+        Indicador::create([
+            'codigo' => 'IAAPS-05',
+            'nombre' => 'Tasa de Visita Domiciliaria Integral',
+            'tipo' => 'IAAPS',
+            'numerador_description' => 'N° visitas domiciliarias integrales realizadas',
+            'denominador_description' => 'N° de familias (población inscrita validada / 3,3)',
+            'target_value' => 0.15,
+            'periodicidad' => 'Mensual',
+            'fu' => 'REM-A',
+            'is_active' => true,
+        ]),
+        Indicador::create([
+            'codigo' => 'IAAPS-06.1A',
+            'nombre' => 'Cobertura examen de medicina preventiva en mujeres de 20 a 64 años',
+            'tipo' => 'IAAPS',
+            'numerador_description' => 'N° de EMP realizado en población de mujeres de 20 a 64 años',
+            'denominador_description' => 'Población mujeres 20-64 menos embarazadas',
+            'target_value' => 30.00,
+            'periodicidad' => 'Mensual',
+            'fu' => 'REM-A',
+            'is_active' => true,
+        ]),
+        Indicador::create([
+            'codigo' => 'IAAPS-12',
+            'nombre' => 'Ingreso precoz de mujeres a control de embarazo antes de las 14 semanas',
+            'tipo' => 'IAAPS',
+            'numerador_description' => 'N° de mujeres embarazadas ingresadas antes de las 14 semanas a control',
+            'denominador_description' => 'Total de mujeres embarazadas ingresadas a control',
+            'target_value' => 85.00,
+            'periodicidad' => 'Mensual',
+            'fu' => 'REM-A',
+            'is_active' => true,
+        ]),
     ];
 });
 
@@ -224,6 +279,159 @@ test('guardar persiste correctamente las mediciones en la base de datos', functi
         'ano' => 2026,
         'mes' => 6,
         'porcentaje_cumplimiento' => 85.00,
+        'status' => 'Cumpliendo',
+    ]);
+});
+
+test('el servicio calcula correctamente cumplimiento para tasas y fórmulas inversas', function () {
+    $service = new RemReaderService;
+
+    // IAAPS-04 (Inverso, meta <= 10%): 8% alcanzado -> Cumpliendo
+    $resInverso1 = $service->calculateCompliance(8, 100, 10.00, 'Inverso');
+    expect($resInverso1['porcentaje'])->toBe(8.0)
+        ->and($resInverso1['estado'])->toBe('Cumpliendo');
+
+    // IAAPS-04 (Inverso, meta <= 10%): 11% alcanzado (entre 10% y 11.5%) -> En Riesgo
+    $resInverso2 = $service->calculateCompliance(11, 100, 10.00, 'Inverso');
+    expect($resInverso2['porcentaje'])->toBe(11.0)
+        ->and($resInverso2['estado'])->toBe('En Riesgo');
+
+    // IAAPS-04 (Inverso, meta <= 10%): 15% alcanzado (> 11.5%) -> Crítico
+    $resInverso3 = $service->calculateCompliance(15, 100, 10.00, 'Inverso');
+    expect($resInverso3['porcentaje'])->toBe(15.0)
+        ->and($resInverso3['estado'])->toBe('Crítico');
+
+    // IAAPS-03 (Tasa, meta 1.25): Si logra 1.25 -> 100% cumplimiento -> Cumpliendo
+    $resTasa1 = $service->calculateCompliance(1250, 1000, 1.25, 'Tasa');
+    expect($resTasa1['porcentaje'])->toBe(100.0)
+        ->and($resTasa1['estado'])->toBe('Cumpliendo');
+
+    // IAAPS-03 (Tasa, meta 1.25): Si logra 1.10 (88% de la meta) -> En Riesgo
+    $resTasa2 = $service->calculateCompliance(1100, 1000, 1.25, 'Tasa');
+    expect($resTasa2['porcentaje'])->toBe(88.0)
+        ->and($resTasa2['estado'])->toBe('En Riesgo');
+
+    // IAAPS-03 (Tasa, meta 1.25): Si logra 0.50 (40% de la meta) -> Crítico
+    $resTasa3 = $service->calculateCompliance(500, 1000, 1.25, 'Tasa');
+    expect($resTasa3['porcentaje'])->toBe(40.0)
+        ->and($resTasa3['estado'])->toBe('Crítico');
+});
+
+test('previsualizar extrae indicadores IAAPS y genera preguntas de denominadores pendientes', function () {
+    $realPath = 'D:/DAS/jkm/119308A06.xlsm';
+    if (! file_exists($realPath)) {
+        $this->markTestSkipped('Archivo real 119308A06.xlsm no disponible para este entorno');
+    }
+
+    $uploadedFile = new UploadedFile(
+        $realPath,
+        '119308A06.xlsm',
+        'application/vnd.ms-excel.sheet.macroEnabled.12',
+        null,
+        true
+    );
+
+    $response = $this->actingAs($this->user)
+        ->post(route('importacion.previsualizar'), [
+            'archivo' => $uploadedFile,
+            'tipo_indicadores' => 'todas',
+        ]);
+
+    $response->assertOk();
+    $data = $response->json();
+
+    // Validar extracción de IAAPS-12 (Ingreso precoz embarazo hoja A05: C13 = 9, C11 = 9)
+    expect($data['extracted_metas'])->toHaveKey('IAAPS-12')
+        ->and($data['extracted_metas']['IAAPS-12']['numerador'])->toEqual(9)
+        ->and($data['extracted_metas']['IAAPS-12']['denominador'])->toEqual(9);
+
+    // Validar extracción de IAAPS-03 (Consultas morbilidad médica hoja A04: B12 = 1296)
+    expect($data['extracted_metas'])->toHaveKey('IAAPS-03')
+        ->and($data['extracted_metas']['IAAPS-03']['numerador'])->toEqual(1296)
+        ->and($data['extracted_metas']['IAAPS-03']['denominador'])->toEqual(35000);
+
+    // Validar extracción de IAAPS-06.1A (EMP mujeres hoja A02: D11 = 133) y 06.1B (EMP hombres: C11 = 100)
+    expect($data['extracted_metas'])->toHaveKey('IAAPS-06.1A')
+        ->and($data['extracted_metas']['IAAPS-06.1A']['numerador'])->toEqual(133)
+        ->and($data['extracted_metas'])->toHaveKey('IAAPS-06.1B')
+        ->and($data['extracted_metas']['IAAPS-06.1B']['numerador'])->toEqual(100);
+
+    // Validar que se generaron pending_inputs para IAAPS
+    $metasEnPending = collect($data['pending_inputs'])->pluck('meta_codigo')->unique()->toArray();
+    expect($metasEnPending)->toContain('IAAPS-04')
+        ->and($metasEnPending)->toContain('IAAPS-05');
+});
+
+test('guardar persiste mediciones de Metas Sanitarias e IAAPS 2025 simultáneamente', function () {
+    $tempToken = 'test-token-uuid-iaaps-9999';
+
+    Cache::put("rem_pending_{$tempToken}", [
+        'metadata' => ['año' => 2026, 'mes' => 6],
+        'extracted' => [
+            'MS-01' => [
+                'numerador' => 9,
+                'denominador' => 10,
+                'fuente' => 'REM-A03',
+            ],
+            'IAAPS-12' => [
+                'numerador' => 9,
+                'denominador' => 9,
+                'fuente' => 'REM-A05',
+            ],
+            'IAAPS-03' => [
+                'numerador' => 43750,
+                'denominador' => 35000,
+                'fuente' => 'REM-A04',
+            ],
+        ],
+    ], now()->addHour());
+
+    $response = $this->actingAs($this->user)
+        ->postJson(route('importacion.guardar'), [
+            'temp_token' => $tempToken,
+            'establecimiento_id' => $this->establecimiento->id,
+            'año' => 2026,
+            'mes' => 6,
+            'inputs' => [
+                'iaaps_04_sic' => 50,
+                'iaaps_04_total_consultas' => 1000,
+            ],
+        ]);
+
+    $response->assertOk()
+        ->assertJson([
+            'status' => 'success',
+            'periodo' => ['año' => 2026, 'mes' => 6],
+        ]);
+
+    $data = $response->json();
+    expect($data['totales']['metas_count'])->toBeGreaterThanOrEqual(1)
+        ->and($data['totales']['iaaps_count'])->toBeGreaterThanOrEqual(2);
+
+    // MS-01: 9 / 10 = 90%
+    $this->assertDatabaseHas('indicador_medidas', [
+        'establecimientos_id' => $this->establecimiento->id,
+        'ano' => 2026,
+        'mes' => 6,
+        'porcentaje_cumplimiento' => 90.00,
+        'status' => 'Cumpliendo',
+    ]);
+
+    // IAAPS-12: 9 / 9 = 100% (meta 85%) -> Cumpliendo
+    $this->assertDatabaseHas('indicador_medidas', [
+        'establecimientos_id' => $this->establecimiento->id,
+        'ano' => 2026,
+        'mes' => 6,
+        'porcentaje_cumplimiento' => 100.00,
+        'status' => 'Cumpliendo',
+    ]);
+
+    // IAAPS-04: 50 / 1000 = 5% <= 10% -> Cumpliendo
+    $this->assertDatabaseHas('indicador_medidas', [
+        'establecimientos_id' => $this->establecimiento->id,
+        'ano' => 2026,
+        'mes' => 6,
+        'porcentaje_cumplimiento' => 5.00,
         'status' => 'Cumpliendo',
     ]);
 });
