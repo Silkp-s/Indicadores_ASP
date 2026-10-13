@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ImportacionController;
 use App\Http\Controllers\IndicadorController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -69,6 +70,13 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::get('/iaaps-metas', function () {
         return view('iaaps-metas.index');
     })->name('iaaps-metas.index');
+
+    // Módulo de Importación REM (Metas Sanitarias 2026)
+    Route::get('/importacion', [ImportacionController::class, 'index'])->name('importacion');
+    Route::post('/importacion/previsualizar', [ImportacionController::class, 'previsualizar'])->name('importacion.previsualizar');
+    Route::post('/importacion/guardar', [ImportacionController::class, 'guardar'])->name('importacion.guardar');
+    Route::post('/importacion/procesar', [ImportacionController::class, 'previsualizar'])->name('importacion.procesar');
+    Route::post('/importacion/confirmar', [ImportacionController::class, 'guardar'])->name('importacion.confirmar');
 
     Route::post('/iaaps-metas', function () {
         return redirect()->route('iaaps-metas.index');

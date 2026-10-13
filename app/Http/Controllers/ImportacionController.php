@@ -1,0 +1,339 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Establecimiento;
+use App\Models\Indicador;
+use App\Models\IndicadorMedida;
+use App\Services\RemReaderService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+
+class ImportacionController extends Controller
+{
+    public function __construct(
+        protected RemReaderService $remReader
+    ) {}
+
+    /**
+     * Muestra la vista principal del módulo de importación masiva REM.
+     */
+    public function index(): View
+    {
+        $establecimientos = Establecimiento::where('is_active', true)
+            ->orderBy('nombre')
+            ->get();
+
+        $medidasRecientes = IndicadorMedida::with(['indicador', 'establecimiento'])
+            ->latest()
+            ->take(15)
+            ->get();
+
+        $stats = [
+            'total_mediciones' => IndicadorMedida::count(),
+            'cumpliendo' => IndicadorMedida::where('status', 'Cumpliendo')->count(),
+            'en_riesgo' => IndicadorMedida::where('status', 'En Riesgo')->count(),
+            'critico' => IndicadorMedida::where('status', 'Crítico')->count(),
+        ];
+
+        return view('importacion.index', [
+            'establecimientos' => $establecimientos,
+            'medidasRecientes' => $medidasRecientes,
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
+     * Procesa la planilla REM (.xlsm / .xlsx), detecta metadatos y extrae numeradores.
+     * Si el establecimiento no coincide o faltan datos demográficos, devuelve las preguntas SweetAlert.
+     */
+    public function previsualizar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'archivo' => ['required', 'file', 'max:35840'], // hasta 35MB
+            'establecimiento_id' => ['nullable', 'exists:establecimientos,id'],
+        ]);
+
+        $file = $request->file('archivo');
+        $originalName = $file->getClientOriginalName();
+        $tempToken = (string) Str::uuid();
+
+        // Guardar archivo temporalmente para su posterior confirmación
+        $tempPath = $file->storeAs('temp_rem', "{$tempToken}.".$file->getClientOriginalExtension());
+        $fullPath = storage_path("app/private/{$tempPath}");
+
+        if (! file_exists($fullPath)) {
+            $fullPath = storage_path("app/{$tempPath}");
+        }
+
+        try {
+            $spreadsheet = $this->remReader->loadRelevantSpreadsheet($fullPath);
+            $metadata = $this->remReader->detectMetadata($spreadsheet, $originalName);
+
+            // 1. Vinculación con Establecimiento
+            $establecimiento = null;
+            if ($request->filled('establecimiento_id')) {
+                $establecimiento = Establecimiento::find($request->input('establecimiento_id'));
+            } else {
+                $establecimiento = $this->remReader->matchEstablecimiento(
+                    $metadata['codigo_deis'],
+                    $metadata['nombre_establecimiento']
+                );
+            }
+
+            // Excepción SweetAlert: Establecimiento no reconocido en BD
+            if ($establecimiento === null) {
+                Cache::put("rem_pending_{$tempToken}", [
+                    'file_path' => $fullPath,
+                    'filename' => $originalName,
+                    'metadata' => $metadata,
+                ], now()->addHours(2));
+
+                $todosEstablecimientos = Establecimiento::select('id', 'nombre', 'codigo_deis', 'poblacion_inscrita')
+                    ->where('is_active', true)
+                    ->orderBy('nombre')
+                    ->get();
+
+                return response()->json([
+                    'status' => 'establishment_not_found',
+                    'temp_token' => $tempToken,
+                    'detected' => [
+                        'codigo_deis' => $metadata['codigo_deis'] ?? 'No detectado',
+                        'nombre' => $metadata['nombre_establecimiento'] ?? 'No especificado',
+                        'mes' => $metadata['mes'],
+                        'mes_nombre' => $metadata['mes_nombre'] ?? 'No especificado',
+                        'año' => $metadata['año'],
+                        'serie' => $metadata['serie'] ?? 'A',
+                    ],
+                    'establecimientos_disponibles' => $todosEstablecimientos,
+                    'message' => 'El establecimiento detectado en la planilla no coincide exactamente con ninguno registrado en la base de datos.',
+                ]);
+            }
+
+            // 2. Extracción de numeradores y denominadores de la matriz REM
+            $extracted = $this->remReader->extractNumeradores($spreadsheet);
+
+            // 3. Determinar denominadores o insumos pendientes (FONASA / ENS)
+            $pendingInputs = $this->remReader->determinePendingInputs($extracted, $establecimiento, $metadata['año']);
+
+            // Almacenar extracción en caché
+            Cache::put("rem_pending_{$tempToken}", [
+                'file_path' => $fullPath,
+                'filename' => $originalName,
+                'metadata' => $metadata,
+                'establecimiento_id' => $establecimiento->id,
+                'extracted' => $extracted,
+            ], now()->addHours(2));
+
+            $periodo = [
+                'año' => $metadata['año'],
+                'mes' => $metadata['mes'] ?? (int) date('n'),
+                'mes_nombre' => $metadata['mes_nombre'] ?? 'Periodo actual',
+                'serie' => $metadata['serie'] ?? 'A',
+            ];
+
+            if (! empty($pendingInputs)) {
+                return response()->json([
+                    'status' => 'requires_input',
+                    'temp_token' => $tempToken,
+                    'establecimiento' => [
+                        'id' => $establecimiento->id,
+                        'nombre' => $establecimiento->nombre,
+                        'codigo_deis' => $establecimiento->codigo_deis,
+                        'poblacion_inscrita' => $establecimiento->poblacion_inscrita,
+                    ],
+                    'periodo' => $periodo,
+                    'extracted_metas' => $extracted,
+                    'pending_inputs' => $pendingInputs,
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'ready',
+                'temp_token' => $tempToken,
+                'establecimiento' => [
+                    'id' => $establecimiento->id,
+                    'nombre' => $establecimiento->nombre,
+                    'codigo_deis' => $establecimiento->codigo_deis,
+                    'poblacion_inscrita' => $establecimiento->poblacion_inscrita,
+                ],
+                'periodo' => $periodo,
+                'extracted_metas' => $extracted,
+                'pending_inputs' => [],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al previsualizar archivo REM: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Ocurrió un error al procesar la planilla: '.$e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Recibe los valores complementarios ingresados vía SweetAlert2, efectúa los cálculos
+     * finales de cumplimiento y persiste las mediciones en `indicador_medidas`.
+     */
+    public function guardar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'temp_token' => ['required', 'string'],
+            'establecimiento_id' => ['required', 'exists:establecimientos,id'],
+            'año' => ['required', 'integer'],
+            'mes' => ['required', 'integer', 'between:1,12'],
+            'inputs' => ['nullable', 'array'],
+        ]);
+
+        $tempToken = $request->input('temp_token');
+        $sessionData = Cache::get("rem_pending_{$tempToken}");
+
+        $establecimientoId = (int) $request->input('establecimiento_id');
+        $establecimiento = Establecimiento::findOrFail($establecimientoId);
+        $año = (int) $request->input('año');
+        $mes = (int) $request->input('mes');
+        $userInputs = $request->input('inputs', []);
+
+        $extracted = $sessionData['extracted'] ?? [];
+
+        // Catálogo de Metas Sanitarias activas
+        $indicadores = Indicador::where('tipo', 'Meta Sanitaria')
+            ->where('is_active', true)
+            ->get();
+
+        $savedMedidas = [];
+
+        foreach ($indicadores as $indicador) {
+            $codigo = $indicador->codigo;
+            $metaExtracted = $extracted[$codigo] ?? null;
+
+            $numerador = 0.0;
+            $denominador = 0.0;
+
+            // Mapeo de numeradores y denominadores por meta
+            switch ($codigo) {
+                case 'MS-01':
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_ms_01'] ?? 0));
+                    $denominador = (float) ($metaExtracted['denominador'] ?? ($userInputs['dsm_denominador_riesgo'] ?? 0));
+                    break;
+
+                case 'MS-02':
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_pap_vigente'] ?? 0));
+                    $denominador = (float) ($userInputs['poblacion_fonasa_25_64'] ?? 0);
+                    break;
+
+                case 'MS-03':
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_ms_03'] ?? 0));
+                    $denominador = (float) ($userInputs['poblacion_fonasa_0_9'] ?? 0);
+                    break;
+
+                case 'MS-04':
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_dm2_compensada'] ?? 0));
+                    $denominador = (float) ($userInputs['poblacion_estimada_dm2'] ?? 0);
+                    break;
+
+                case 'MS-05':
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_hta_compensada'] ?? 0));
+                    $denominador = (float) ($userInputs['poblacion_estimada_hta'] ?? 0);
+                    break;
+
+                case 'MS-06':
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_lme_6m'] ?? 0));
+                    $denominador = (float) ($userInputs['denominador_control_6m'] ?? 0);
+                    break;
+
+                case 'MS-07':
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_asma_epoc'] ?? 0));
+                    $denominador = (float) ($userInputs['poblacion_estimada_asma_epoc'] ?? 0);
+                    break;
+
+                case 'MS-08':
+                    $numerador = (float) ($userInputs['actividades_comunitarias_ejec'] ?? 1);
+                    $denominador = (float) ($userInputs['actividades_comunitarias_prog'] ?? 1);
+                    break;
+
+                default:
+                    if ($metaExtracted !== null) {
+                        $numerador = (float) ($metaExtracted['numerador'] ?? 0);
+                        $denominador = (float) ($metaExtracted['denominador'] ?? 0);
+                    }
+                    break;
+            }
+
+            // Si ambos son 0 y no hubo extracción ni input del usuario para esta meta, omitir
+            if ($numerador === 0.0 && $denominador === 0.0 && $metaExtracted === null && ! isset($userInputs["numerador_{$codigo}"])) {
+                continue;
+            }
+
+            $compliance = $this->remReader->calculateCompliance(
+                $numerador,
+                $denominador,
+                (float) $indicador->target_value
+            );
+
+            $medida = IndicadorMedida::updateOrCreate(
+                [
+                    'indicadores_id' => $indicador->id,
+                    'establecimientos_id' => $establecimiento->id,
+                    'ano' => $año,
+                    'mes' => $mes,
+                ],
+                [
+                    'numerador_value' => $numerador,
+                    'denominador_value' => $denominador,
+                    'porcentaje_cumplimiento' => $compliance['porcentaje'],
+                    'status' => $compliance['estado'],
+                ]
+            );
+
+            $savedMedidas[] = [
+                'id' => $medida->id,
+                'codigo' => $indicador->codigo,
+                'nombre' => $indicador->nombre,
+                'numerador' => $numerador,
+                'denominador' => $denominador,
+                'porcentaje' => $compliance['porcentaje'],
+                'objetivo' => (float) $indicador->target_value,
+                'estado' => $compliance['estado'],
+            ];
+        }
+
+        // Limpiar caché
+        Cache::forget("rem_pending_{$tempToken}");
+
+        $totales = [
+            'cumpliendo' => collect($savedMedidas)->where('estado', 'Cumpliendo')->count(),
+            'en_riesgo' => collect($savedMedidas)->where('estado', 'En Riesgo')->count(),
+            'critico' => collect($savedMedidas)->where('estado', 'Crítico')->count(),
+            'total' => count($savedMedidas),
+        ];
+
+        // Preparar series para ApexCharts
+        $chartData = [
+            'categories' => collect($savedMedidas)->pluck('codigo')->toArray(),
+            'cumplimiento' => collect($savedMedidas)->pluck('porcentaje')->toArray(),
+            'objetivos' => collect($savedMedidas)->pluck('objetivo')->toArray(),
+        ];
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Importación REM y cálculo de Metas Sanitarias completados con éxito.',
+            'establecimiento' => [
+                'id' => $establecimiento->id,
+                'nombre' => $establecimiento->nombre,
+                'poblacion_inscrita' => $establecimiento->poblacion_inscrita,
+            ],
+            'periodo' => [
+                'año' => $año,
+                'mes' => $mes,
+            ],
+            'totales' => $totales,
+            'medidas' => $savedMedidas,
+            'chart' => $chartData,
+        ]);
+    }
+}

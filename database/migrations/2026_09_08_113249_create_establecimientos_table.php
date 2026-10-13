@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('nombre'); // Ej: San Vicente, Bellavista
             $table->enum('tipo', ['CESFAM', 'CECOSF', 'SAR', 'SAPU', 'DAS']); // Tipo de recinto
-            $table->integer('poblacion inscrita')->default(0); // (visto en Centro de Mando)
+            $table->integer('poblacion_inscrita')->default(0); // (visto en Centro de Mando)
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

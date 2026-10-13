@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Table('indicadores', timestamps: false)]
 #[Fillable(['codigo', 'nombre', 'tipo', 'numerador_description', 'denominador_description', 'target_value', 'periodicidad', 'fu', 'is_active'])]
@@ -66,5 +67,21 @@ class Indicador extends Model
             ->when($filtros['tipo'], fn (Builder $query, string $tipo) => $query->where('tipo', $tipo))
             ->when($filtros['fuente'], fn (Builder $query, string $fuente) => $query->where('fu', $fuente))
             ->when($filtros['estado'] !== 'todos', fn (Builder $query) => $query->where('is_active', $filtros['estado'] === 'activo'));
+    }
+
+    /**
+     * Mediciones del indicador.
+     */
+    public function medidas(): HasMany
+    {
+        return $this->hasMany(IndicadorMedida::class, 'indicadores_id');
+    }
+
+    /**
+     * Alias de target_value para compatibilidad con MER (objetivo).
+     */
+    protected function objetivo(): Attribute
+    {
+        return Attribute::get(fn (): ?float => $this->target_value !== null ? (float) $this->target_value : null);
     }
 }
