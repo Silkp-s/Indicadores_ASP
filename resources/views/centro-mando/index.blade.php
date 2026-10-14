@@ -193,7 +193,7 @@
             </div>
             <p class="mt-3 text-3xl font-extrabold text-brand-950">{{ number_format($poblacionBeneficiaria, 0, ',', '.') }}</p>
             <p class="mt-1 text-xs text-[#64748B] truncate" title="{{ $establecimientoNombre }}">
-                Inscritos FONASA validada · {{ $establecimientoNombre }}
+                {{ $establecimientoNombre }}
             </p>
         </div>
 
@@ -208,14 +208,14 @@
             <div class="mt-3 flex items-center justify-between text-sm">
                 <div class="flex items-center gap-1.5">
                     <span class="h-2.5 w-2.5 rounded-full bg-accent-500"></span>
-                    <span class="text-xs text-[#475569]">Metas Ley 19.813:</span>
+                    <span class="text-xs text-[#475569]">Metas Sanitarias:</span>
                 </div>
                 <span class="font-bold text-brand-950">{{ $metasCount }}</span>
             </div>
             <div class="mt-1.5 flex items-center justify-between text-sm">
                 <div class="flex items-center gap-1.5">
                     <span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
-                    <span class="text-xs text-[#475569]">IAAPS 2025:</span>
+                    <span class="text-xs text-[#475569]">IAAPS:</span>
                 </div>
                 <span class="font-bold text-brand-950">{{ $iaapsCount }}</span>
             </div>
@@ -348,7 +348,7 @@
                     <h3 class="text-base font-bold text-brand-950">Comparativa de Indicadores vs Meta Objetivo</h3>
                     <p class="text-xs text-[#64748B]">Porcentaje de avance actual comparado contra la meta nacional / comunal</p>
                 </div>
-                <span class="rounded bg-brand-100 px-2 py-1 text-xs font-semibold text-brand-800">ApexCharts</span>
+               
             </div>
             <div id="chart-ejecutivo-barras" class="min-h-[350px]"></div>
         </div>

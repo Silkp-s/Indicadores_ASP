@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CentroMandoController;
+use App\Http\Controllers\EstablecimientoController;
 use App\Http\Controllers\ImportacionController;
 use App\Http\Controllers\IndicadorController;
 use Illuminate\Support\Facades\Auth;
@@ -69,6 +70,13 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::get('/iaaps-metas', function () {
         return view('iaaps-metas.index');
     })->name('iaaps-metas.index');
+
+    // Módulo Establecimientos de Salud
+    Route::get('/establecimientos', [EstablecimientoController::class, 'index'])->name('establecimientos.index');
+    Route::post('/establecimientos', [EstablecimientoController::class, 'store'])->name('establecimientos.store');
+    Route::put('/establecimientos/{establecimiento}', [EstablecimientoController::class, 'update'])->name('establecimientos.update')->whereNumber('establecimiento');
+    Route::delete('/establecimientos/{establecimiento}', [EstablecimientoController::class, 'destroy'])->name('establecimientos.destroy')->whereNumber('establecimiento');
+    Route::patch('/establecimientos/{establecimiento}/estado', [EstablecimientoController::class, 'cambiarEstado'])->name('establecimientos.estado')->whereNumber('establecimiento');
 
     // Módulo de Importación REM (Metas Sanitarias 2026)
     Route::get('/importacion', [ImportacionController::class, 'index'])->name('importacion');

@@ -2,7 +2,7 @@
 
 @section('title', 'Importación Masiva REM')
 @section('page-title', 'Módulo de Importación REM')
-@section('page-subtitle', 'Procesamiento de planillas oficiales MINSAL (Serie A / Serie P) y cálculo de Metas Sanitarias Ley 19.813 e IAAPS 2025')
+@section('page-subtitle', 'Procesamiento de planillas oficiales MINSAL (Serie A / Serie P) y cálculo de Metas Sanitarias e IAAPS')
 
 @section('content')
 <div class="space-y-8">
@@ -131,15 +131,15 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-brand-950 shadow-xs has-[:checked]:border-accent-600 has-[:checked]:bg-[#EEF5FF] has-[:checked]:text-accent-700 transition-all">
                         <input type="radio" name="tipo_indicadores" value="todas" checked class="text-accent-600 focus:ring-accent-500">
-                        <span>Todas (Metas + IAAPS 2025)</span>
+                        <span>Todas (Metas + IAAPS)</span>
                     </label>
                     <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-brand-950 shadow-xs has-[:checked]:border-accent-600 has-[:checked]:bg-[#EEF5FF] has-[:checked]:text-accent-700 transition-all">
                         <input type="radio" name="tipo_indicadores" value="metas" class="text-accent-600 focus:ring-accent-500">
-                        <span>Solo Metas Sanitarias (Ley 19.813)</span>
+                        <span>Solo Metas Sanitarias</span>
                     </label>
                     <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-brand-950 shadow-xs has-[:checked]:border-accent-600 has-[:checked]:bg-[#EEF5FF] has-[:checked]:text-accent-700 transition-all">
                         <input type="radio" name="tipo_indicadores" value="iaaps" class="text-accent-600 focus:ring-accent-500">
-                        <span>Solo IAAPS 2025</span>
+                        <span>Solo IAAPS</span>
                     </label>
                 </div>
             </div>
@@ -209,7 +209,7 @@
                     Resultados de Cumplimiento · Metas Sanitarias e IAAPS 2025
                 </h2>
                 <p class="text-sm text-[#64748B]">
-                    Mediciones calculadas según Ley 19.813 e Indicadores IAAPS 2025 a partir de la planilla oficial y datos demográficos FONASA.
+                    Mediciones calculadas según Metas e Indicadores IAAPS a partir de la planilla oficial.
                 </p>
             </div>
             <button
@@ -231,11 +231,11 @@
                 <span id="badge-count-todas" class="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-800">0</span>
             </button>
             <button type="button" class="tab-filter-btn shrink-0 flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-[#64748B] hover:text-brand-950 transition-colors" data-filter="metas">
-                <span>Metas Sanitarias (Ley 19.813)</span>
+                <span>Metas Sanitarias</span>
                 <span id="badge-count-metas" class="rounded-full bg-[#E2E8F0] px-2 py-0.5 text-xs font-semibold text-[#475569]">0</span>
             </button>
             <button type="button" class="tab-filter-btn shrink-0 flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-[#64748B] hover:text-brand-950 transition-colors" data-filter="iaaps">
-                <span>IAAPS 2025</span>
+                <span>IAAPS</span>
                 <span id="badge-count-iaaps" class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">0</span>
             </button>
         </div>
@@ -247,7 +247,7 @@
                 <div class="mb-4 flex items-center justify-between">
                     <div>
                         <h3 class="text-base font-bold text-brand-950">Avance vs Objetivo Nacional / Comunal</h3>
-                        <p class="text-xs text-[#64748B]">Comparativa porcentual o tasa por indicador (Ley 19.813 / IAAPS 2025)</p>
+                        <p class="text-xs text-[#64748B]">Comparativa porcentual o tasa por indicador (Metas Sanitarias / IAAPS)</p>
                     </div>
                     <span class="rounded bg-brand-100 px-2 py-1 text-xs font-semibold text-brand-800">ApexCharts</span>
                 </div>

@@ -6,15 +6,14 @@ use App\Models\Indicador;
 use Illuminate\Database\Seeder;
 
 /**
- * Catálogo de indicadores APS: Metas Sanitarias Ley 19.813 e IAAPS 2025.
- * Se puede correr varias veces: actualiza por código en vez de duplicar.
+ * Catálogo de indicadores APS: Metas Sanitaria IAAPS
  */
 class IndicadorSeeder extends Seeder
 {
     public function run(): void
     {
         $indicadores = [
-            // Metas Sanitarias Ley 19.813 (2026)
+            // Metas Sanitarias
             ['MS-01', 'Recuperación del desarrollo psicomotor en niños y niñas de 12 a 23 meses', 'Meta Sanitaria',
                 'N° de niños y niñas de 12 a 23 meses con riesgo o retraso del DSM recuperados',
                 'N° de niños y niñas de 12 a 23 meses con riesgo o retraso del DSM detectado', 90, 'Mensual', 'REM-A', true],
@@ -40,7 +39,7 @@ class IndicadorSeeder extends Seeder
                 'Actividades comunitarias ejecutadas según programación anual',
                 'Total de actividades comunitarias programadas', 100, 'Mensual', 'REM-A', true],
 
-            // Indicadores IAAPS 2025
+            // Indicadores IAAPS
             ['IAAPS-01', 'Porcentaje de Centros de Salud autoevaluados mediante instrumento MAIS', 'IAAPS',
                 'N° de centros de salud de la comuna autoevaluados en MAIS',
                 'N° de establecimientos de salud de la comuna año 2025', 100, 'Anual', 'DEIS', true],
