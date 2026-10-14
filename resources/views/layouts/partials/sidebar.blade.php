@@ -45,22 +45,36 @@
     ];
 @endphp
 
-<aside class="flex h-screen w-64 shrink-0 flex-col bg-brand-950 text-[#CBD5E1]">
+<aside id="app-sidebar" class="fixed inset-y-0 left-0 z-50 flex h-full w-64 shrink-0 -translate-x-full flex-col bg-brand-950 text-[#CBD5E1] transition-transform duration-300 ease-in-out lg:static lg:h-screen lg:translate-x-0 shadow-xl lg:shadow-none">
 
-    {{-- Marca --}}
-    <div class="flex items-center gap-2.5 px-5 py-6">
-        <svg class="h-9 w-9 shrink-0" viewBox="0 0 32 32" aria-hidden="true">
-            <circle cx="8.5" cy="12" r="3" class="fill-accent-500" />
-            <path d="M3.5 24c0-3.3 2.2-6 5-6s5 2.7 5 6z" class="fill-accent-500" />
-            <circle cx="23.5" cy="12" r="3" class="fill-[#93B4F8]" />
-            <path d="M18.5 24c0-3.3 2.2-6 5-6s5 2.7 5 6z" class="fill-[#93B4F8]" />
-            <circle cx="16" cy="9" r="3.6" class="fill-white" />
-            <path d="M9.5 27c0-4 2.9-7.2 6.5-7.2s6.5 3.2 6.5 7.2z" class="fill-white" />
-        </svg>
-        <div class="flex items-center gap-2">
-            <span class="text-[26px] font-bold leading-none tracking-tight text-white">DAS</span>
-            <span class="whitespace-nowrap text-[10.5px] leading-tight text-[#94A3B8]">Inteligencia Sanitaria<br>Talcahuano</span>
+    {{-- Marca y Botón Cerrar (móvil) --}}
+    <div class="flex items-center justify-between px-5 py-6">
+        <div class="flex items-center gap-2.5">
+            <svg class="h-9 w-9 shrink-0" viewBox="0 0 32 32" aria-hidden="true">
+                <circle cx="8.5" cy="12" r="3" class="fill-accent-500" />
+                <path d="M3.5 24c0-3.3 2.2-6 5-6s5 2.7 5 6z" class="fill-accent-500" />
+                <circle cx="23.5" cy="12" r="3" class="fill-[#93B4F8]" />
+                <path d="M18.5 24c0-3.3 2.2-6 5-6s5 2.7 5 6z" class="fill-[#93B4F8]" />
+                <circle cx="16" cy="9" r="3.6" class="fill-white" />
+                <path d="M9.5 27c0-4 2.9-7.2 6.5-7.2s6.5 3.2 6.5 7.2z" class="fill-white" />
+            </svg>
+            <div class="flex items-center gap-2">
+                <span class="text-[26px] font-bold leading-none tracking-tight text-white">DAS</span>
+                <span class="whitespace-nowrap text-[10.5px] leading-tight text-[#94A3B8]">Inteligencia Sanitaria<br>Talcahuano</span>
+            </div>
         </div>
+
+        {{-- Botón cerrar (móvil) --}}
+        <button
+            type="button"
+            id="sidebar-close-btn"
+            class="inline-flex items-center justify-center rounded-lg p-1.5 text-[#94A3B8] hover:bg-brand-900 hover:text-white focus:outline-none focus:ring-2 focus:ring-accent-500 lg:hidden"
+            aria-label="Cerrar menú de navegación"
+        >
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
     </div>
 
     <div class="mx-6 h-px bg-[#1E293B]"></div>

@@ -18,7 +18,7 @@
         <form method="POST" action="{{ route('iaaps-metas.store') }}" class="space-y-4 px-6 py-5">
             @csrf
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-[#1C2A26]">Código</label>
                     <input type="text" name="codigo" placeholder="IAAPS-05" class="mt-1.5 w-full rounded-md border border-[#D7DEDB] px-3 py-2 text-sm focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20">
@@ -37,7 +37,7 @@
                 <input type="text" name="nombre" placeholder="Ej: Cobertura Efectiva DM2 en personas de 15 años y más" class="mt-1.5 w-full rounded-md border border-[#D7DEDB] px-3 py-2 text-sm focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20">
             </div>
 
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-[#1C2A26]">Meta (%)</label>
                     <input type="number" name="meta" min="0" max="100" placeholder="85" class="mt-1.5 w-full rounded-md border border-[#D7DEDB] px-3 py-2 text-sm focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20">
@@ -55,11 +55,11 @@
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 border-t border-[#E1E7E4] pt-4">
-                <button type="button" onclick="document.getElementById('modal-indicador').classList.add('hidden')" class="rounded-md px-4 py-2 text-sm font-medium text-[#4C5B56] hover:bg-[#F4F6F5]">
+            <div class="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 border-t border-[#E1E7E4] pt-4">
+                <button type="button" onclick="document.getElementById('modal-indicador').classList.add('hidden')" class="w-full sm:w-auto rounded-md px-4 py-2 text-center text-sm font-medium text-[#4C5B56] hover:bg-[#F4F6F5]">
                     Cancelar
                 </button>
-                <button type="submit" class="rounded-md bg-brand-950 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800">
+                <button type="submit" class="w-full sm:w-auto rounded-md bg-brand-950 px-4 py-2 text-center text-sm font-medium text-white hover:bg-brand-800">
                     Guardar indicador
                 </button>
             </div>

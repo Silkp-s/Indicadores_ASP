@@ -49,11 +49,11 @@
             @endif
 
             @foreach ($chips as $chip)
-                <div class="relative">
+                <div class="relative w-full sm:w-auto">
                     <select
                         @if ($chip['nombre']) name="{{ $chip['nombre'] }}" @else title="Se aplicará al registro de mediciones" @endif
                         aria-label="{{ $chip['nombre'] ? 'Filtrar por '.Str::lower($chip['etiqueta']) : $chip['etiqueta'] }}"
-                        class="cursor-pointer appearance-none rounded-lg border border-accent-500/15 bg-brand-100 py-2 pl-3.5 pr-9 text-sm font-medium text-brand-950 hover:border-accent-500/40 focus:outline-none focus-visible:border-accent-500 focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F7FB]"
+                        class="w-full sm:w-auto cursor-pointer appearance-none rounded-lg border border-accent-500/15 bg-brand-100 py-2 pl-3.5 pr-9 text-sm font-medium text-brand-950 hover:border-accent-500/40 focus:outline-none focus-visible:border-accent-500 focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F7FB]"
                     >
                         @foreach ($chip['opciones'] as $valor => $texto)
                             <option value="{{ $valor }}" @selected($chip['nombre'] && (string) ($filtros[$chip['nombre']] ?? '') === (string) $valor)>{{ $chip['prefijo'] ? $chip['prefijo'].': '.$texto : $texto }}</option>
@@ -68,14 +68,14 @@
             <button type="submit" class="sr-only rounded-lg bg-brand-950 px-3 py-2 text-sm font-medium text-white focus:not-sr-only">Aplicar filtros</button>
         </form>
 
-        <div class="flex shrink-0 items-center gap-3">
-            <a href="{{ route('indicadores.exportar', Arr::except(request()->query(), 'page')) }}" class="flex items-center gap-2 rounded-lg border border-[#D8DEE9] bg-white px-4 py-2.5 text-sm font-medium text-[#1E293B] shadow-sm hover:bg-[#F8FAFC]" title="Descargar en CSV (Excel) los indicadores de la búsqueda y filtros actuales">
+        <div class="flex w-full sm:w-auto shrink-0 items-center gap-2 sm:gap-3">
+            <a href="{{ route('indicadores.exportar', Arr::except(request()->query(), 'page')) }}" class="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-lg border border-[#D8DEE9] bg-white px-4 py-2.5 text-sm font-medium text-[#1E293B] shadow-sm hover:bg-[#F8FAFC]" title="Descargar en CSV (Excel) los indicadores de la búsqueda y filtros actuales">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
                 Exportar
             </a>
-            <button type="button" data-nuevo-indicador class="flex items-center gap-2 rounded-lg bg-accent-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent-600">
+            <button type="button" data-nuevo-indicador class="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent-600">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>

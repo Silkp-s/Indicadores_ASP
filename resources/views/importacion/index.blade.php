@@ -182,16 +182,16 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-3">
-                <div class="rounded-lg border border-[#CBD5E1] bg-white px-3.5 py-2 text-center shadow-xs">
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                <div class="flex-1 sm:flex-initial min-w-[100px] rounded-lg border border-[#CBD5E1] bg-white px-3.5 py-2 text-center shadow-xs">
                     <span class="block text-[11px] font-medium uppercase text-[#64748B]">Mes de Corte</span>
                     <span id="meta-mes" class="text-sm font-bold text-brand-950">Junio (06)</span>
                 </div>
-                <div class="rounded-lg border border-[#CBD5E1] bg-white px-3.5 py-2 text-center shadow-xs">
+                <div class="flex-1 sm:flex-initial min-w-[100px] rounded-lg border border-[#CBD5E1] bg-white px-3.5 py-2 text-center shadow-xs">
                     <span class="block text-[11px] font-medium uppercase text-[#64748B]">Año de Evaluación</span>
                     <span id="meta-año" class="text-sm font-bold text-brand-950">2026</span>
                 </div>
-                <div class="rounded-lg border border-[#CBD5E1] bg-white px-3.5 py-2 text-center shadow-xs">
+                <div class="flex-1 sm:flex-initial min-w-[100px] rounded-lg border border-[#CBD5E1] bg-white px-3.5 py-2 text-center shadow-xs">
                     <span class="block text-[11px] font-medium uppercase text-[#64748B]">Serie DEIS</span>
                     <span id="meta-serie" class="text-sm font-bold text-accent-600">Serie A</span>
                 </div>
@@ -215,7 +215,7 @@
             <button
                 type="button"
                 onclick="window.print()"
-                class="inline-flex items-center gap-2 rounded-lg border border-[#D8DEE9] bg-white px-4 py-2 text-sm font-medium text-brand-950 shadow-xs hover:bg-[#F8FAFC]"
+                class="inline-flex w-full sm:w-auto justify-center items-center gap-2 rounded-lg border border-[#D8DEE9] bg-white px-4 py-2 text-sm font-medium text-brand-950 shadow-xs hover:bg-[#F8FAFC]"
             >
                 <svg class="h-4 w-4 text-[#64748B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -225,16 +225,16 @@
         </div>
 
         {{-- Pestañas / Filtro de Resultados --}}
-        <div class="flex border-b border-[#E2E8F0] gap-2">
-            <button type="button" class="tab-filter-btn flex items-center gap-2 border-b-2 border-brand-950 px-4 py-2.5 text-sm font-bold text-brand-950 transition-colors" data-filter="todas">
+        <div class="flex border-b border-[#E2E8F0] gap-2 overflow-x-auto whitespace-nowrap pb-px">
+            <button type="button" class="tab-filter-btn shrink-0 flex items-center gap-2 border-b-2 border-brand-950 px-4 py-2.5 text-sm font-bold text-brand-950 transition-colors" data-filter="todas">
                 <span>Todos los Indicadores</span>
                 <span id="badge-count-todas" class="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-800">0</span>
             </button>
-            <button type="button" class="tab-filter-btn flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-[#64748B] hover:text-brand-950 transition-colors" data-filter="metas">
+            <button type="button" class="tab-filter-btn shrink-0 flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-[#64748B] hover:text-brand-950 transition-colors" data-filter="metas">
                 <span>Metas Sanitarias (Ley 19.813)</span>
                 <span id="badge-count-metas" class="rounded-full bg-[#E2E8F0] px-2 py-0.5 text-xs font-semibold text-[#475569]">0</span>
             </button>
-            <button type="button" class="tab-filter-btn flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-[#64748B] hover:text-brand-950 transition-colors" data-filter="iaaps">
+            <button type="button" class="tab-filter-btn shrink-0 flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-[#64748B] hover:text-brand-950 transition-colors" data-filter="iaaps">
                 <span>IAAPS 2025</span>
                 <span id="badge-count-iaaps" class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">0</span>
             </button>
@@ -738,9 +738,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.tab-filter-btn').forEach(btn => {
             const f = btn.getAttribute('data-filter');
             if (f === filtro) {
-                btn.className = 'tab-filter-btn flex items-center gap-2 border-b-2 border-brand-950 px-4 py-2.5 text-sm font-bold text-brand-950 transition-colors';
+                btn.className = 'tab-filter-btn shrink-0 flex items-center gap-2 border-b-2 border-brand-950 px-4 py-2.5 text-sm font-bold text-brand-950 transition-colors';
             } else {
-                btn.className = 'tab-filter-btn flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-[#64748B] hover:text-brand-950 transition-colors';
+                btn.className = 'tab-filter-btn shrink-0 flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-[#64748B] hover:text-brand-950 transition-colors';
             }
         });
 
@@ -886,7 +886,29 @@ document.addEventListener('DOMContentLoaded', () => {
             legend: {
                 position: 'top',
                 horizontalAlign: 'right'
-            }
+            },
+            responsive: [
+                {
+                    breakpoint: 640,
+                    options: {
+                        plotOptions: {
+                            bar: {
+                                columnWidth: '80%'
+                            }
+                        },
+                        legend: {
+                            position: 'bottom',
+                            horizontalAlign: 'center'
+                        },
+                        xaxis: {
+                            labels: {
+                                rotate: -45,
+                                style: { fontSize: '10px' }
+                            }
+                        }
+                    }
+                }
+            ]
         };
 
         chartBarras = new ApexCharts(document.querySelector("#chart-barras"), barOptions);

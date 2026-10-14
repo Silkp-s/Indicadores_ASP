@@ -29,7 +29,7 @@
             <input type="hidden" name="_method" value="PUT" @disabled(! $editandoId)>
             <input type="hidden" name="indicador_id" value="{{ $editandoId }}">
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label for="campo-codigo" class="block text-sm font-medium text-[#1E293B]">Código</label>
                     <input id="campo-codigo" type="text" name="codigo" value="{{ old('codigo') }}" required maxlength="20" placeholder="IAAPS-05" class="{{ $claseCampo }}" @error('codigo') aria-invalid="true" aria-describedby="error-codigo" @enderror>
@@ -52,7 +52,7 @@
                 @error('nombre') <p id="error-nombre" data-error class="mt-1 text-xs text-status-bad-fg">{{ $message }}</p> @enderror
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label for="campo-numerador" class="block text-sm font-medium text-[#1E293B]">Numerador</label>
                     <textarea id="campo-numerador" name="numerador_description" rows="3" maxlength="1000" placeholder="Ej: N° de niños evaluados" class="{{ $claseCampo }}" @error('numerador_description') aria-invalid="true" aria-describedby="error-numerador_description" @enderror>{{ old('numerador_description') }}</textarea>
@@ -65,7 +65,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label for="campo-meta" class="block text-sm font-medium text-[#1E293B]">Meta (%)</label>
                     <input id="campo-meta" type="number" name="target_value" value="{{ old('target_value') }}" min="0" max="100" step="0.01" required placeholder="85" class="{{ $claseCampo }}" @error('target_value') aria-invalid="true" aria-describedby="error-target_value" @enderror>
@@ -99,11 +99,11 @@
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 border-t border-[#E2E8F0] pt-4">
-                <button type="button" data-cerrar class="rounded-lg px-4 py-2 text-sm font-medium text-[#475569] hover:bg-[#F1F5F9]">
+            <div class="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 border-t border-[#E2E8F0] pt-4">
+                <button type="button" data-cerrar class="w-full sm:w-auto rounded-lg px-4 py-2 text-center text-sm font-medium text-[#475569] hover:bg-[#F1F5F9]">
                     Cancelar
                 </button>
-                <button type="submit" class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-600">
+                <button type="submit" class="w-full sm:w-auto rounded-lg bg-accent-500 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-accent-600">
                     Guardar indicador
                 </button>
             </div>
