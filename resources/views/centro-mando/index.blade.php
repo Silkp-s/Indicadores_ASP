@@ -1,164 +1,605 @@
 @extends('layouts.app')
 
-@section('title', 'Centro de Mando')
-@section('page-title', 'Centro de Mando')
-@section('page-subtitle', 'Vista comunal de cumplimiento e indicadores')
-
-{{--
-    NOTA PARA EL EQUIPO:
-    El navbar/sidebar viene del layout (layouts.app).
-    El gráfico "Evolución mensual de atenciones" queda como placeholder
-    a propósito — se conecta cuando se defina la librería de gráficos.
---}}
+@section('title', 'Centro de Mando Ejecutivo')
+@section('page-title', 'Centro de Mando Ejecutivo')
+@section('page-subtitle', 'Supervisión comunal de cumplimiento, semáforo de metas e indicadores críticos de la red asistencial')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-8">
 
-    {{-- Barra de filtros --}}
-    <div class="flex flex-wrap items-center gap-3 rounded-md border border-[#E1E7E4] bg-white p-4">
-
-        <div class="relative flex-1 min-w-[220px]">
-            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA6A1]" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+    {{-- Barra de Filtros Ejecutivos --}}
+    <form method="GET" action="{{ route('centro-mando') }}" class="flex flex-wrap items-center gap-3 rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
+        
+        {{-- Búsqueda por texto libre --}}
+        <div class="relative flex-1 min-w-[240px]">
+            <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
                 type="text"
-                placeholder="Búsqueda de reportes..."
-                class="w-full rounded-md border border-[#D7DEDB] bg-white py-2 pl-9 pr-3 text-sm placeholder:text-[#9AA6A1] focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20"
+                name="q"
+                value="{{ $filtros['q'] }}"
+                placeholder="Buscar por código (ej: MS-01, IAAPS-03) o nombre..."
+                class="w-full rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] py-2 pl-10 pr-3 text-sm text-brand-950 placeholder:text-[#94A3B8] focus:border-accent-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20"
             >
         </div>
 
-        <select class="rounded-md border border-[#D7DEDB] bg-white px-3 py-2 text-sm text-[#4C5B56] focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20">
-            <option>Periodo: SEP 2026</option>
-            <option>Periodo: AGO 2026</option>
-            <option>Periodo: JUL 2026</option>
-        </select>
+        {{-- Selector de Periodo (Año-Mes) --}}
+        <div class="min-w-[160px]">
+            <select
+                name="periodo"
+                onchange="this.form.submit()"
+                class="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-brand-950 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+            >
+                @forelse ($periodosDisponibles as $per)
+                    <option value="{{ $per['key'] }}" @selected($filtros['periodo'] === $per['key'])>
+                        Periodo: {{ $per['label'] }}
+                    </option>
+                @empty
+                    <option value="{{ $periodoSeleccionado }}">
+                        Periodo: {{ $mesNombre }} {{ $año }}
+                    </option>
+                @endforelse
+            </select>
+        </div>
 
-        <select class="rounded-md border border-[#D7DEDB] bg-white px-3 py-2 text-sm text-[#4C5B56] focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20">
-            <option>Establecimiento: Comunal</option>
-            <option>Establecimiento: CESFAM San Vicente</option>
-            <option>Establecimiento: CECOSF Principal</option>
-        </select>
+        {{-- Selector de Establecimiento --}}
+        <div class="min-w-[200px]">
+            <select
+                name="establecimiento_id"
+                onchange="this.form.submit()"
+                class="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-brand-950 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+            >
+                <option value="todos" @selected($filtros['establecimiento_id'] === 'todos')>
+                    Establecimiento: Toda la Red Comunal
+                </option>
+                @foreach ($establecimientos as $est)
+                    <option value="{{ $est->id }}" @selected((string)$filtros['establecimiento_id'] === (string)$est->id)>
+                        {{ $est->nombre }} ({{ $est->codigo_deis ?? 'S/C' }})
+                    </option>
+                @endforeach
+            </select>
+        </div>
 
-        <select class="rounded-md border border-[#D7DEDB] bg-white px-3 py-2 text-sm text-[#4C5B56] focus:border-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-800/20">
-            <option>Ver: Todos</option>
-            <option>Ver: Bajo meta</option>
-            <option>Ver: En proceso</option>
-            <option>Ver: Cumpliendo</option>
-        </select>
+        {{-- Selector de Tipo de Indicador --}}
+        <div class="min-w-[170px]">
+            <select
+                name="tipo"
+                onchange="this.form.submit()"
+                class="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-brand-950 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+            >
+                <option value="todos" @selected($filtros['tipo'] === 'todos')>Tipo: Todos</option>
+                <option value="Meta Sanitaria" @selected($filtros['tipo'] === 'Meta Sanitaria')>Metas Sanitarias</option>
+                <option value="IAAPS" @selected($filtros['tipo'] === 'IAAPS')>IAAPS</option>
+            </select>
+        </div>
 
-        <button
-            type="button"
-            class="ml-auto flex items-center gap-2 rounded-md bg-brand-950 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800"
-        >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Nuevo reporte
-        </button>
-    </div>
+        {{-- Selector de Estado / Semáforo --}}
+        <div class="min-w-[150px]">
+            <select
+                name="estado"
+                onchange="this.form.submit()"
+                class="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-brand-950 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+            >
+                <option value="todos" @selected($filtros['estado'] === 'todos')>Estado: Todos</option>
+                <option value="criticos" @selected($filtros['estado'] === 'criticos')>🚨 Críticos y En Riesgo</option>
+                <option value="Cumpliendo" @selected($filtros['estado'] === 'Cumpliendo')>✅ Cumpliendo</option>
+                <option value="En Riesgo" @selected($filtros['estado'] === 'En Riesgo')>⚠️ En Riesgo</option>
+                <option value="Crítico" @selected($filtros['estado'] === 'Crítico')>⛔ Crítico</option>
+            </select>
+        </div>
 
-    {{-- KPIs --}}
+        {{-- Botones de Acción --}}
+        <div class="flex items-center gap-2">
+            <button
+                type="submit"
+                class="rounded-lg bg-brand-950 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-800 transition-colors"
+            >
+                Filtrar
+            </button>
+            @if ($filtros['q'] || $filtros['establecimiento_id'] !== 'todos' || $filtros['tipo'] !== 'todos' || $filtros['estado'] !== 'todos')
+                <a
+                    href="{{ route('centro-mando', ['periodo' => $filtros['periodo']]) }}"
+                    class="rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                    title="Limpiar filtros"
+                >
+                    Limpiar
+                </a>
+            @endif
+            <a
+                href="{{ route('importacion') }}"
+                class="flex items-center gap-1.5 rounded-lg border border-accent-600/30 bg-[#EEF5FF] px-3.5 py-2 text-sm font-semibold text-accent-700 hover:bg-accent-100 transition-colors"
+            >
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Importar REM
+            </a>
+        </div>
+    </form>
+
+    {{-- Panel de KPIs Ejecutivos (Tarjetas Rápidas) --}}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-        <div class="rounded-md border border-[#E1E7E4] bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-[#6B7A75]">Cumplimiento promedio</p>
-            <div class="mt-3 flex items-center gap-3">
-                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-status-ok-bg text-sm font-semibold text-status-ok-fg">
-                    75%
-                </div>
-                <p class="text-xs leading-snug text-[#6B7A75]">IAAPS + Metas Sanitarias — 279 indicadores operativos</p>
-            </div>
-        </div>
-
-        <div class="rounded-md border border-[#E1E7E4] bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-[#6B7A75]">Población beneficiaria comunal</p>
-            <p class="mt-3 text-2xl font-semibold text-brand-950">130.794</p>
-            <p class="mt-1 text-xs text-[#6B7A75]">Población estimada FONASA A-B-C-D por CESFAM</p>
-        </div>
-
-        <div class="rounded-md border border-[#E1E7E4] bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-[#6B7A75]">Atenciones · Julio 2026</p>
-            <p class="mt-3 text-2xl font-semibold text-brand-950">70.730</p>
-            <p class="mt-1 text-xs text-[#6B7A75]">de 82.500 registros mensuales</p>
-        </div>
-
-        <div class="rounded-md border border-[#E1E7E4] bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-[#6B7A75]">Establecimientos activos</p>
-            <p class="mt-3 text-2xl font-semibold text-brand-950">10</p>
-            <p class="mt-1 text-xs text-[#6B7A75]">CESFAM · CECOSF · Postas</p>
-        </div>
-    </div>
-
-    {{-- Vista de indicadores --}}
-    <div class="rounded-md border border-[#E1E7E4] bg-white">
-        <div class="border-b border-[#E1E7E4] px-5 py-4">
-            <h2 class="text-sm font-semibold text-brand-950">Vista de indicadores</h2>
-        </div>
-
-        <div class="divide-y divide-[#E9EEEC]">
-            @foreach ([
-                ['valor' => '50%', 'estado' => 'bajo', 'label' => 'Bajo meta', 'nombre' => 'Evaluación Desarrollo Psicomotor (12 a 23 meses)', 'meta' => '100%', 'detalle' => '10% de la meta', 'avance' => 10],
-                ['valor' => '59,5%', 'estado' => 'medio', 'label' => 'En proceso', 'nombre' => 'Cobertura DM2 Efectiva en personas de 15 y más', 'meta' => '70%', 'detalle' => '50% de la meta', 'avance' => 50],
-                ['valor' => '0,48', 'estado' => 'ok', 'label' => 'Cumpliendo', 'nombre' => 'Tasa de conflictos por establecimiento', 'meta' => '< 1.00', 'detalle' => 'Alineado con meta', 'avance' => 90],
-            ] as $ind)
-            <div class="flex flex-wrap items-center gap-4 px-5 py-4">
-
-                <div @class([
-                    'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
-                    'bg-status-bad-bg text-status-bad-fg' => $ind['estado'] === 'bajo',
-                    'bg-status-warn-bg text-status-warn-fg' => $ind['estado'] === 'medio',
-                    'bg-status-ok-bg text-status-ok-fg' => $ind['estado'] === 'ok',
-                ])>
-                    {{ $ind['valor'] }}
-                </div>
-
+        
+        {{-- KPI 1: Cumplimiento Promedio Global --}}
+        <div class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-[#64748B]">Cumplimiento Promedio</span>
                 <span @class([
-                    'rounded-full px-2.5 py-1 text-xs font-medium',
-                    'bg-status-bad-bg text-status-bad-fg' => $ind['estado'] === 'bajo',
-                    'bg-status-warn-bg text-status-warn-fg' => $ind['estado'] === 'medio',
-                    'bg-status-ok-bg text-status-ok-fg' => $ind['estado'] === 'ok',
+                    'flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold shadow-xs',
+                    'bg-[#E7F9EF] text-[#16A34A]' => $cumplimientoPromedio >= 85,
+                    'bg-[#FFF4E5] text-[#F97316]' => $cumplimientoPromedio >= 65 && $cumplimientoPromedio < 85,
+                    'bg-[#FDEDEC] text-[#E11D2E]' => $cumplimientoPromedio < 65,
                 ])>
-                    {{ $ind['label'] }}
+                    %
                 </span>
+            </div>
+            <div class="mt-3 flex items-baseline gap-2">
+                <p class="text-3xl font-extrabold text-brand-950">{{ $cumplimientoPromedio }}%</p>
+                <span @class([
+                    'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold',
+                    'bg-[#E7F9EF] text-[#16A34A]' => $cumplimientoPromedio >= 85,
+                    'bg-[#FFF4E5] text-[#F97316]' => $cumplimientoPromedio >= 65 && $cumplimientoPromedio < 85,
+                    'bg-[#FDEDEC] text-[#E11D2E]' => $cumplimientoPromedio < 65,
+                ])>
+                    @if ($cumplimientoPromedio >= 85)
+                        Rendimiento Óptimo
+                    @elseif ($cumplimientoPromedio >= 65)
+                        Monitoreo Activo
+                    @else
+                        Atención Urgente
+                    @endif
+                </span>
+            </div>
+            <p class="mt-1 text-xs text-[#64748B]">
+                Sobre {{ $totalMediciones }} indicadores evaluados en {{ $mesNombre }} {{ $año }}
+            </p>
+        </div>
 
-                <p class="min-w-[240px] flex-1 text-sm font-medium text-[#1C2A26]">{{ $ind['nombre'] }}</p>
-
-                <p class="text-sm text-[#6B7A75]">Meta: {{ $ind['meta'] }}</p>
-
-                <div class="flex w-40 items-center gap-2">
-                    <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E9EEEC]">
-                        <div @class([
-                            'h-full rounded-full',
-                            'bg-status-bad-fg' => $ind['estado'] === 'bajo',
-                            'bg-status-warn-fg' => $ind['estado'] === 'medio',
-                            'bg-status-ok-fg' => $ind['estado'] === 'ok',
-                        ]) style="width: {{ $ind['avance'] }}%"></div>
-                    </div>
-                    <span class="whitespace-nowrap text-xs text-[#6B7A75]">{{ $ind['detalle'] }}</span>
+        {{-- KPI 2: Semáforo Comunal de Indicadores --}}
+        <div class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-[#64748B]">Semáforo Comunal</span>
+                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 text-brand-900 shadow-xs">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </span>
+            </div>
+            <div class="mt-3 flex items-center gap-2">
+                <div class="flex-1 rounded-lg bg-[#E7F9EF] p-2 text-center" title="Cumpliendo meta">
+                    <span class="block text-lg font-bold text-[#16A34A]">{{ $cumpliendoCount }}</span>
+                    <span class="block text-[10px] font-semibold uppercase text-[#16A34A]">Cumple</span>
+                </div>
+                <div class="flex-1 rounded-lg bg-[#FFF4E5] p-2 text-center" title="En riesgo de incumplir">
+                    <span class="block text-lg font-bold text-[#F97316]">{{ $enRiesgoCount }}</span>
+                    <span class="block text-[10px] font-semibold uppercase text-[#F97316]">Riesgo</span>
+                </div>
+                <div class="flex-1 rounded-lg bg-[#FDEDEC] p-2 text-center" title="Crítico bajo meta">
+                    <span class="block text-lg font-bold text-[#E11D2E]">{{ $criticoCount }}</span>
+                    <span class="block text-[10px] font-semibold uppercase text-[#E11D2E]">Crítico</span>
                 </div>
             </div>
-            @endforeach
+            <p class="mt-1 text-xs text-[#64748B]">
+                {{ $totalMediciones > 0 ? round(($cumpliendoCount / $totalMediciones) * 100, 0) : 0 }}% de la cartera con meta lograda
+            </p>
         </div>
+
+        {{-- KPI 3: Población Beneficiaria --}}
+        <div class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-[#64748B]">Población Beneficiaria</span>
+                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-50 text-accent-600 shadow-xs">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                </span>
+            </div>
+            <p class="mt-3 text-3xl font-extrabold text-brand-950">{{ number_format($poblacionBeneficiaria, 0, ',', '.') }}</p>
+            <p class="mt-1 text-xs text-[#64748B] truncate" title="{{ $establecimientoNombre }}">
+                Inscritos FONASA validada · {{ $establecimientoNombre }}
+            </p>
+        </div>
+
+        {{-- KPI 4: Balance de Programas --}}
+        <div class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-[#64748B]">Líneas Asistenciales</span>
+                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 text-brand-800 shadow-xs">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                </span>
+            </div>
+            <div class="mt-3 flex items-center justify-between text-sm">
+                <div class="flex items-center gap-1.5">
+                    <span class="h-2.5 w-2.5 rounded-full bg-accent-500"></span>
+                    <span class="text-xs text-[#475569]">Metas Sanitarias:</span>
+                </div>
+                <span class="font-bold text-brand-950">{{ $metasCount }}</span>
+            </div>
+            <div class="mt-1.5 flex items-center justify-between text-sm">
+                <div class="flex items-center gap-1.5">
+                    <span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
+                    <span class="text-xs text-[#475569]">IAAPS:</span>
+                </div>
+                <span class="font-bold text-brand-950">{{ $iaapsCount }}</span>
+            </div>
+            <p class="mt-2 text-[11px] text-[#94A3B8]">
+                Mediciones sincronizadas vía planillas oficiales REM
+            </p>
+        </div>
+
     </div>
 
-    {{-- Gráficos: placeholders a propósito --}}
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    {{-- SECCIÓN CRÍTICA DESTACADA: Indicadores Críticos del Momento (Atención Prioritaria) --}}
+    <div class="rounded-xl border border-[#FCA5A5]/60 bg-gradient-to-br from-white via-white to-[#FEF2F2] p-6 shadow-xs">
+        
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-[#FEE2E2] pb-4">
+            <div class="flex items-center gap-3">
+                <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FDEDEC] text-[#E11D2E] shadow-xs">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </span>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-lg font-bold text-brand-950">Indicadores Críticos y en Riesgo del Momento</h2>
+                        <span class="rounded-full bg-[#FDEDEC] px-2.5 py-0.5 text-xs font-bold text-[#E11D2E]">
+                            {{ count($indicadoresCriticos) }} requieren atención
+                        </span>
+                    </div>
+                    <p class="text-xs text-[#64748B]">
+                        Indicadores de la red asistencial con rendimiento bajo la meta (< 85% o < 100%) en {{ $mesNombre }} {{ $año }}.
+                    </p>
+                </div>
+            </div>
 
-        <div class="rounded-md border border-[#E1E7E4] bg-white p-5 lg:col-span-2">
-            <h2 class="text-sm font-semibold text-brand-950">Evolución mensual de atenciones</h2>
-            <div class="mt-4 flex h-48 items-center justify-center rounded-md border border-dashed border-[#C7D3CE] bg-[#F9FBFA] text-xs text-[#6B7A75]">
-                Gráfico pendiente — se conecta con la librería de gráficos que defina el equipo
+            <a
+                href="{{ route('importacion') }}"
+                class="inline-flex items-center gap-1.5 rounded-lg bg-brand-950 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-800 transition-colors"
+            >
+                <span>Actualizar Planilla REM</span>
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </a>
+        </div>
+
+        @if (count($indicadoresCriticos) > 0)
+            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                @foreach ($indicadoresCriticos->take(6) as $critico)
+                    <div class="flex flex-col justify-between rounded-lg border border-[#FCD34D]/80 bg-white p-4 shadow-xs hover:border-[#F59E0B] transition-all">
+                        <div>
+                            {{-- Cabecera de tarjeta --}}
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="font-mono text-sm font-bold text-brand-950">{{ $critico['codigo'] }}</span>
+                                <div class="flex items-center gap-1.5">
+                                    @if ($critico['tipo'] === 'IAAPS')
+                                        <span class="rounded bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 border border-amber-200">IAAPS</span>
+                                    @else
+                                        <span class="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-800 border border-blue-200">Meta Sanitaria</span>
+                                    @endif
+                                    @if ($critico['status'] === 'Crítico')
+                                        <span class="rounded-full bg-[#FDEDEC] px-2 py-0.5 text-[11px] font-bold text-[#E11D2E]">Crítico</span>
+                                    @else
+                                        <span class="rounded-full bg-[#FFF4E5] px-2 py-0.5 text-[11px] font-bold text-[#F97316]">En Riesgo</span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            {{-- Nombre del indicador --}}
+                            <h3 class="mt-2 text-xs font-semibold text-[#1E293B] line-clamp-2" title="{{ $critico['nombre'] }}">
+                                {{ $critico['nombre'] }}
+                            </h3>
+
+                            <p class="mt-1 text-[11px] text-[#64748B]">
+                                Centro: <strong class="text-brand-950">{{ $critico['establecimiento'] }}</strong>
+                            </p>
+                        </div>
+
+                        {{-- Progreso y Brecha --}}
+                        <div class="mt-4 space-y-2 border-t border-[#F1F5F9] pt-3">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#64748B]">Cumplimiento Actual:</span>
+                                <span class="font-bold text-[#E11D2E]">{{ number_format($critico['porcentaje'], 1) }}%</span>
+                            </div>
+
+                            <div class="h-2 w-full overflow-hidden rounded-full bg-[#E2E8F0]">
+                                <div
+                                    class="h-full rounded-full {{ $critico['status'] === 'Crítico' ? 'bg-[#E11D2E]' : 'bg-[#F97316]' }}"
+                                    style="width: {{ min(max($critico['porcentaje'], 0), 100) }}%"
+                                ></div>
+                            </div>
+
+                            <div class="flex items-center justify-between text-[11px] text-[#64748B]">
+                                <span>Meta: <strong class="text-brand-950">{{ number_format($critico['target'], 1) }}%</strong></span>
+                                <span class="font-semibold text-[#E11D2E]">
+                                    Brecha: {{ $critico['brecha'] }}%
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between text-[11px] text-[#94A3B8] font-mono">
+                                <span>Num: {{ number_format($critico['numerador'], 0, ',', '.') }}</span>
+                                <span>Den: {{ number_format($critico['denominador'], 0, ',', '.') }}</span>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            @if (count($indicadoresCriticos) > 6)
+                <p class="mt-3 text-right text-xs text-[#64748B]">
+                    Mostrando los 6 indicadores más desfavorables de un total de {{ count($indicadoresCriticos) }} críticos.
+                </p>
+            @endif
+        @else
+            <div class="mt-4 flex items-center gap-3 rounded-lg bg-[#E7F9EF] p-4 text-[#16A34A]">
+                <svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <div class="text-sm">
+                    <p class="font-bold">¡Excelente Desempeño!</p>
+                    <p class="text-xs text-[#15803D]">Todos los indicadores evaluados en el periodo se encuentran dentro de los parámetros esperados de cumplimiento.</p>
+                </div>
+            </div>
+        @endif
+    </div>
+
+    {{-- GRÁFICOS EJECUTIVOS APEXCHARTS --}}
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        
+        {{-- Gráfico 1: Cumplimiento vs Meta Nacional / Comunal --}}
+        <div class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs lg:col-span-2">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <h3 class="text-base font-bold text-brand-950">Comparativa de Indicadores vs Meta Objetivo</h3>
+                    <p class="text-xs text-[#64748B]">Porcentaje de avance actual comparado contra la meta nacional / comunal</p>
+                </div>
+                <span class="rounded bg-brand-100 px-2 py-1 text-xs font-semibold text-brand-800">ApexCharts</span>
+            </div>
+            <div id="chart-ejecutivo-barras" class="min-h-[350px]"></div>
+        </div>
+
+        {{-- Gráfico 2: Distribución de Estado Ejecutivo --}}
+        <div class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs">
+            <div class="mb-4">
+                <h3 class="text-base font-bold text-brand-950">Distribución de Cumplimiento</h3>
+                <p class="text-xs text-[#64748B]">Proporción según regla técnica MINSAL</p>
+            </div>
+            <div id="chart-ejecutivo-donut" class="flex min-h-[350px] items-center justify-center"></div>
+        </div>
+
+    </div>
+
+    {{-- TABLERO COMPLETO DE INDICADORES DEL PERIODO --}}
+    <div class="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white shadow-xs">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-[#F1F5F9] px-6 py-4">
+            <div>
+                <h3 class="text-base font-bold text-brand-950">Detalle Completo de Indicadores del Periodo</h3>
+                <p class="text-xs text-[#64748B]">
+                    Mediciones registradas para {{ $establecimientoNombre }} · {{ $mesNombre }} {{ $año }} (Total: {{ $totalMediciones }})
+                </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button
+                    type="button"
+                    onclick="window.print()"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-brand-950 shadow-xs hover:bg-[#F8FAFC]"
+                >
+                    <svg class="h-3.5 w-3.5 text-[#64748B]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    Imprimir Informe
+                </button>
             </div>
         </div>
 
-        <div class="rounded-md border border-[#E1E7E4] bg-white p-5">
-            <h2 class="text-sm font-semibold text-brand-950">Cumplimiento por establecimiento</h2>
-            <div class="mt-4 flex h-48 items-center justify-center rounded-md border border-dashed border-[#C7D3CE] bg-[#F9FBFA] text-xs text-[#6B7A75]">
-                Gráfico pendiente
-            </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wider text-[#64748B]">
+                    <tr>
+                        <th class="px-6 py-3.5">Tipo</th>
+                        <th class="px-6 py-3.5">Código</th>
+                        <th class="px-6 py-3.5">Indicador</th>
+                        <th class="px-6 py-3.5">Establecimiento</th>
+                        <th class="px-6 py-3.5 text-right">Numerador</th>
+                        <th class="px-6 py-3.5 text-right">Denominador</th>
+                        <th class="px-6 py-3.5 text-center">Cumplimiento</th>
+                        <th class="px-6 py-3.5 text-center">Meta Anual</th>
+                        <th class="px-6 py-3.5 text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#F1F5F9]">
+                    @forelse ($medidas as $m)
+                        <tr class="hover:bg-[#F8FAFC] transition-colors">
+                            <td class="px-6 py-3.5 whitespace-nowrap">
+                                @if (($m->indicador?->tipo ?? '') === 'IAAPS')
+                                    <span class="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">IAAPS</span>
+                                @else
+                                    <span class="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">Meta Sanitaria</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-3.5 font-mono font-bold text-brand-950 whitespace-nowrap">
+                                {{ $m->indicador?->codigo ?? 'N/A' }}
+                            </td>
+                            <td class="px-6 py-3.5 text-[#334155]">
+                                <span class="font-medium text-brand-950 block">{{ $m->indicador?->nombre ?? 'N/A' }}</span>
+                                <span class="text-xs text-[#64748B]">{{ Str::limit($m->indicador?->numerador_description ?? '', 70) }}</span>
+                            </td>
+                            <td class="px-6 py-3.5 text-xs font-medium text-[#475569] whitespace-nowrap">
+                                {{ $m->establecimiento?->nombre ?? 'N/A' }}
+                            </td>
+                            <td class="px-6 py-3.5 text-right font-mono text-xs text-[#334155] whitespace-nowrap">
+                                {{ number_format((float) $m->numerador_value, 0, ',', '.') }}
+                            </td>
+                            <td class="px-6 py-3.5 text-right font-mono text-xs text-[#334155] whitespace-nowrap">
+                                {{ number_format((float) $m->denominador_value, 0, ',', '.') }}
+                            </td>
+                            <td class="px-6 py-3.5 text-center whitespace-nowrap">
+                                <div class="flex items-center justify-center gap-2">
+                                    <div class="h-2 w-16 overflow-hidden rounded-full bg-[#E2E8F0]">
+                                        <div
+                                            @class([
+                                                'h-full rounded-full',
+                                                'bg-[#16A34A]' => $m->status === 'Cumpliendo',
+                                                'bg-[#F97316]' => $m->status === 'En Riesgo',
+                                                'bg-[#E11D2E]' => $m->status === 'Crítico',
+                                            ])
+                                            style="width: {{ min(max((float) $m->porcentaje_cumplimiento, 0), 100) }}%"
+                                        ></div>
+                                    </div>
+                                    <span class="font-bold text-brand-950">{{ number_format((float) $m->porcentaje_cumplimiento, 2) }}%</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-3.5 text-center font-semibold text-[#64748B] whitespace-nowrap">
+                                {{ number_format((float) ($m->indicador?->target_value ?? 0), 1) }}%
+                            </td>
+                            <td class="px-6 py-3.5 text-center whitespace-nowrap">
+                                @if ($m->status === 'Cumpliendo')
+                                    <span class="inline-flex rounded-full bg-[#E7F9EF] px-2.5 py-0.5 text-xs font-semibold text-[#16A34A]">Cumpliendo</span>
+                                @elseif ($m->status === 'En Riesgo')
+                                    <span class="inline-flex rounded-full bg-[#FFF4E5] px-2.5 py-0.5 text-xs font-semibold text-[#F97316]">En Riesgo</span>
+                                @else
+                                    <span class="inline-flex rounded-full bg-[#FDEDEC] px-2.5 py-0.5 text-xs font-semibold text-[#E11D2E]">Crítico</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="9" class="px-6 py-12 text-center text-sm text-[#94A3B8]">
+                                <svg class="mx-auto h-10 w-10 text-[#CBD5E1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                <p class="mt-2 font-medium text-brand-950">No hay mediciones registradas para este periodo y filtros</p>
+                                <p class="text-xs text-[#64748B]">Sube una planilla oficial REM en el módulo de importación para generar indicadores automáticamente.</p>
+                                <a href="{{ route('importacion') }}" class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-950 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-800">
+                                    Ir a Módulo de Importación REM &rarr;
+                                </a>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 
 </div>
 @endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Datos inyectados desde el controlador
+    const chartBarrasData = @json($chartBarras);
+    const chartDonutData = @json($chartDonut);
+
+    // 1. Gráfico de Barras: Cumplimiento Actual vs Meta Objetivo
+    if (document.querySelector("#chart-ejecutivo-barras") && chartBarrasData.categories.length > 0) {
+        const barOptions = {
+            series: [
+                {
+                    name: 'Cumplimiento Actual (%)',
+                    data: chartBarrasData.cumplimiento
+                },
+                {
+                    name: 'Meta Nacional / Comunal (%)',
+                    data: chartBarrasData.objetivos
+                }
+            ],
+            chart: {
+                type: 'bar',
+                height: 350,
+                toolbar: { show: false },
+                fontFamily: 'inherit'
+            },
+            plotOptions: {
+                bar: {
+                    horizontal: false,
+                    columnWidth: '55%',
+                    borderRadius: 4
+                }
+            },
+            dataLabels: { enabled: false },
+            stroke: {
+                show: true,
+                width: 2,
+                colors: ['transparent']
+            },
+            xaxis: {
+                categories: chartBarrasData.categories,
+                labels: {
+                    style: { colors: '#64748B', fontWeight: 600 }
+                }
+            },
+            yaxis: {
+                title: { text: 'Porcentaje (%)' },
+                max: 120,
+                labels: {
+                    formatter: (val) => val.toFixed(0) + '%'
+                }
+            },
+            colors: ['#2f6fed', '#0f1424'],
+            fill: { opacity: 1 },
+            tooltip: {
+                y: {
+                    formatter: (val) => val.toFixed(2) + '%'
+                }
+            },
+            legend: {
+                position: 'top',
+                horizontalAlign: 'right'
+            }
+        };
+
+        const chartBarras = new ApexCharts(document.querySelector("#chart-ejecutivo-barras"), barOptions);
+        chartBarras.render();
+    } else if (document.querySelector("#chart-ejecutivo-barras")) {
+        document.querySelector("#chart-ejecutivo-barras").innerHTML = `
+            <div class="flex h-64 items-center justify-center text-sm text-[#94A3B8]">
+                Sin mediciones registradas para graficar en este periodo.
+            </div>
+        `;
+    }
+
+    // 2. Gráfico Donut: Distribución de Semáforo
+    if (document.querySelector("#chart-ejecutivo-donut")) {
+        const totalItems = chartDonutData.series.reduce((a, b) => a + b, 0);
+
+        if (totalItems > 0) {
+            const donutOptions = {
+                series: chartDonutData.series,
+                labels: chartDonutData.labels,
+                chart: {
+                    type: 'donut',
+                    height: 330,
+                    fontFamily: 'inherit'
+                },
+                colors: ['#16A34A', '#F97316', '#E11D2E'],
+                legend: { position: 'bottom' },
+                dataLabels: {
+                    enabled: true,
+                    formatter: (val) => val.toFixed(0) + '%'
+                },
+                plotOptions: {
+                    pie: {
+                        donut: {
+                            size: '65%',
+                            labels: {
+                                show: true,
+                                total: {
+                                    show: true,
+                                    label: 'Indicadores',
+                                    formatter: () => totalItems
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            const chartDonut = new ApexCharts(document.querySelector("#chart-ejecutivo-donut"), donutOptions);
+            chartDonut.render();
+        } else {
+            document.querySelector("#chart-ejecutivo-donut").innerHTML = `
+                <div class="flex h-64 items-center justify-center text-sm text-[#94A3B8]">
+                    Sin indicadores para calcular semáforo.
+                </div>
+            `;
+        }
+    }
+});
+</script>
+@endpush

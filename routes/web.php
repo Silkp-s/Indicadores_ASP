@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\CentroMandoController;
 use App\Http\Controllers\ImportacionController;
 use App\Http\Controllers\IndicadorController;
 use Illuminate\Support\Facades\Auth;
@@ -56,9 +57,7 @@ Route::post('/logout', function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
-    Route::get('/centro-mando', function () {
-        return view('centro-mando.index');
-    })->name('centro-mando');
+    Route::get('/centro-mando', [CentroMandoController::class, 'index'])->name('centro-mando');
 
     // Módulo 1 · Catálogo de Indicadores
     Route::get('/indicadores', [IndicadorController::class, 'index'])->name('indicadores.index');
