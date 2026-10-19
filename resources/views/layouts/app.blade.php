@@ -41,33 +41,8 @@
                     </svg>
                 </button>
 
-                <form role="search" method="GET" action="{{ route('indicadores.index') }}" class="relative flex-1 min-w-0 max-w-xs sm:max-w-md lg:max-w-xl">
-                    <input type="hidden" name="estado" value="todos">
-                    <svg class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-                    </svg>
-                    <input
-                        type="search"
-                        name="q"
-                        value="{{ request()->routeIs('indicadores.index') && is_string(request()->query('q')) ? request()->query('q') : '' }}"
-                        maxlength="100"
-                        placeholder="Buscar indicador por código o nombre..."
-                        aria-label="Buscar indicador por código o nombre"
-                        class="w-full rounded-lg border border-[#D8DEE9] bg-[#F8FAFC] py-2 sm:py-2.5 pl-10 sm:pl-11 pr-3 sm:pr-4 text-xs sm:text-sm placeholder:text-[#94A3B8] focus:border-accent-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20"
-                    >
-                </form>
 
                 <div class="ml-auto flex items-center gap-2 sm:gap-4 lg:gap-5 shrink-0">
-                    <div class="relative hidden md:block">
-                        <select aria-label="Periodo global" class="appearance-none rounded-lg border border-[#D8DEE9] bg-white py-2 pl-3.5 pr-10 text-sm font-medium text-[#1E293B] focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20">
-                            <option>Periodo: 2026-Q3</option>
-                            <option>Periodo: 2026-Q2</option>
-                            <option>Periodo: 2026-Q1</option>
-                        </select>
-                        <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                        </svg>
-                    </div>
 
                     <button type="button" class="hidden sm:inline-flex text-[#64748B] hover:text-brand-950" title="Mensajes" aria-label="Mensajes">
                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">

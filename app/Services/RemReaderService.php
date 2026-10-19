@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Establecimiento;
 use App\Models\Indicador;
+use App\Models\RemMapping;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -96,6 +97,17 @@ class RemReaderService
             'P6', 'P06', 'REM-P6', 'REM-P06',
             'P12', 'P-12', 'REM-P12',
         ];
+
+        try {
+            $mappedSheets = RemMapping::where('is_active', true)->pluck('hoja')->all();
+            foreach ($mappedSheets as $ms) {
+                $targetSheets[] = $ms;
+                $targetSheets[] = 'REM-'.$ms;
+                $targetSheets[] = 'REM '.$ms;
+            }
+        } catch (\Throwable) {
+        }
+
         $sheetsToLoad = array_values(array_intersect($sheetNames, $targetSheets));
 
         if (empty($sheetsToLoad)) {
@@ -190,6 +202,49 @@ class RemReaderService
         }
 
         return $sum;
+    }
+
+    /**
+     * Evalúa una expresión de celda(s) o rango(s) separados por comas o signos '+'
+     * (ej: 'G21', 'J26, K26', 'J26:M26, J28:M28', 'F206:Y207').
+     */
+    public function evaluateCellExpression(?Worksheet $sheet, ?string $expression): ?float
+    {
+        if ($sheet === null || empty($expression)) {
+            return null;
+        }
+
+        $tokens = preg_split('/[,+]/', $expression);
+        $total = 0.0;
+        $foundAny = false;
+
+        foreach ($tokens as $token) {
+            $token = trim((string) $token);
+            if ($token === '') {
+                continue;
+            }
+
+            if (str_contains($token, ':')) {
+                [$start, $end] = explode(':', $token, 2);
+                $start = trim($start);
+                $end = trim($end);
+
+                // Separar letra(s) de columna y número de fila
+                if (preg_match('/^([A-Za-z]+)(\d+)$/', $start, $mStart) && preg_match('/^([A-Za-z]+)(\d+)$/', $end, $mEnd)) {
+                    $valRange = $this->sumCellRange($sheet, $mStart[1], (int) $mStart[2], $mEnd[1], (int) $mEnd[2]);
+                    $total += $valRange;
+                    $foundAny = true;
+                }
+            } else {
+                $cellVal = $this->getCalculatedCell($sheet, $token);
+                if ($cellVal !== null) {
+                    $total += $cellVal;
+                    $foundAny = true;
+                }
+            }
+        }
+
+        return $foundAny ? $total : null;
     }
 
     /**
@@ -890,6 +945,41 @@ class RemReaderService
                     ],
                 ];
             }
+        }
+
+        // ==========================================
+        // 3. APLICACIÓN DE MAPEOS PERSONALIZADOS (Panel de Administración)
+        // ==========================================
+        try {
+            $customMappings = RemMapping::where('is_active', true)->with('indicador')->get();
+            foreach ($customMappings as $mapping) {
+                if (! $mapping->indicador) {
+                    continue;
+                }
+
+                $sheet = $this->getSheet($spreadsheet, $mapping->hoja, 'REM-'.$mapping->hoja, 'REM '.$mapping->hoja);
+                if ($sheet !== null) {
+                    $customNum = $this->evaluateCellExpression($sheet, $mapping->celda_numerador);
+                    if ($customNum !== null) {
+                        $customDen = ! empty($mapping->celda_denominador)
+                            ? $this->evaluateCellExpression($sheet, $mapping->celda_denominador)
+                            : ($results[$mapping->indicador->codigo]['denominador'] ?? null);
+
+                        $results[$mapping->indicador->codigo] = [
+                            'numerador' => $customNum,
+                            'denominador' => $customDen,
+                            'fuente' => 'REM-'.$mapping->hoja.($mapping->seccion ? " ({$mapping->seccion})" : ''),
+                            'detalles' => [
+                                'mapeo_personalizado' => true,
+                                'celda_numerador' => $mapping->celda_numerador,
+                                'celda_denominador' => $mapping->celda_denominador,
+                            ],
+                        ];
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // Continuar con los resultados estándar si la base de datos no está disponible
         }
 
         return $results;

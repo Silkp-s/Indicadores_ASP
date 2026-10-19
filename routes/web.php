@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CentroMandoController;
 use App\Http\Controllers\EstablecimientoController;
+use App\Http\Controllers\IaapsMetasController;
 use App\Http\Controllers\ImportacionController;
 use App\Http\Controllers\IndicadorController;
 use Illuminate\Support\Facades\Auth;
@@ -67,9 +68,11 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::put('/indicadores/{indicador}', [IndicadorController::class, 'update'])->name('indicadores.update')->whereNumber('indicador');
     Route::patch('/indicadores/{indicador}/estado', [IndicadorController::class, 'cambiarEstado'])->name('indicadores.estado')->whereNumber('indicador');
 
-    Route::get('/iaaps-metas', function () {
-        return view('iaaps-metas.index');
-    })->name('iaaps-metas.index');
+    // Módulo 2 · IAAPS y Metas Sanitarias
+    Route::get('/iaaps-metas', [IaapsMetasController::class, 'index'])->name('iaaps-metas.index');
+    Route::post('/iaaps-metas', [IaapsMetasController::class, 'store'])->name('iaaps-metas.store');
+    Route::put('/iaaps-metas/{indicador}', [IaapsMetasController::class, 'update'])->name('iaaps-metas.update')->whereNumber('indicador');
+    Route::delete('/iaaps-metas/{indicador}', [IaapsMetasController::class, 'destroy'])->name('iaaps-metas.destroy')->whereNumber('indicador');
 
     // Módulo Establecimientos de Salud
     Route::get('/establecimientos', [EstablecimientoController::class, 'index'])->name('establecimientos.index');
@@ -84,10 +87,6 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::post('/importacion/guardar', [ImportacionController::class, 'guardar'])->name('importacion.guardar');
     Route::post('/importacion/procesar', [ImportacionController::class, 'previsualizar'])->name('importacion.procesar');
     Route::post('/importacion/confirmar', [ImportacionController::class, 'guardar'])->name('importacion.confirmar');
-
-    Route::post('/iaaps-metas', function () {
-        return redirect()->route('iaaps-metas.index');
-    })->name('iaaps-metas.store');
 
     Route::get('/compromisos', function () {
         return view('en-construccion', ['titulo' => 'Compromisos']); // TODO: Módulo · Compromisos de Gestión
@@ -113,12 +112,26 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
 */
 Route::middleware(['auth', 'admin_only'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('dashboard');
+
+    // Sección 1 · Usuarios
     Route::get('/users/create', [AdminController::class, 'create'])->name('users.create');
     Route::post('/users', [AdminController::class, 'store'])->name('users.store');
     Route::get('/users/{user}/edit', [AdminController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [AdminController::class, 'update'])->name('users.update');
     Route::post('/users/{user}/reset-password', [AdminController::class, 'resetPassword'])->name('users.reset-password');
     Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');
+
+    // Sección 2 · Metas Sanitarias e IAAPS
+    Route::post('/indicadores', [AdminController::class, 'storeIndicador'])->name('indicadores.store');
+    Route::put('/indicadores/{indicador}', [AdminController::class, 'updateIndicador'])->name('indicadores.update')->whereNumber('indicador');
+    Route::delete('/indicadores/{indicador}', [AdminController::class, 'destroyIndicador'])->name('indicadores.destroy')->whereNumber('indicador');
+    Route::patch('/indicadores/{indicador}/estado', [AdminController::class, 'cambiarEstadoIndicador'])->name('indicadores.estado')->whereNumber('indicador');
+
+    // Sección 3 · Mapeo de Celdas REM
+    Route::post('/rem-mappings', [AdminController::class, 'storeRemMapping'])->name('rem-mappings.store');
+    Route::put('/rem-mappings/{mapping}', [AdminController::class, 'updateRemMapping'])->name('rem-mappings.update')->whereNumber('mapping');
+    Route::delete('/rem-mappings/{mapping}', [AdminController::class, 'destroyRemMapping'])->name('rem-mappings.destroy')->whereNumber('mapping');
+    Route::patch('/rem-mappings/{mapping}/estado', [AdminController::class, 'cambiarEstadoRemMapping'])->name('rem-mappings.estado')->whereNumber('mapping');
 });
 
 /*
