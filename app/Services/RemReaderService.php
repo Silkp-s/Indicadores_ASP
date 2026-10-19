@@ -7,6 +7,7 @@ use App\Models\Indicador;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class RemReaderService
 {
@@ -71,9 +72,29 @@ class RemReaderService
     {
         $sheetNames = $this->getSheetNames($filePath);
         $targetSheets = [
-            'NOMBRE', 'A01', 'A02', 'A03', 'A04', 'A05', 'A09',
-            'A23', 'A24', 'A26', 'A27',
-            'P2', 'P3', 'P4', 'P6', 'P12',
+            'NOMBRE',
+            'A01', 'A1', 'REM-A01', 'REM-A1',
+            'A02', 'A2', 'REM-A02', 'REM-A2',
+            'A03', 'A3', 'REM-A03', 'REM-A3',
+            'A04', 'A4', 'REM-A04', 'REM-A4',
+            'A05', 'A5', 'REM-A05', 'REM-A5',
+            'A06', 'A6', 'REM-A06', 'REM-A6',
+            'A07', 'A7', 'REM-A07', 'REM-A7',
+            'A08', 'A8', 'REM-A08', 'REM-A8',
+            'A09', 'A9', 'REM-A09', 'REM-A9',
+            'A19a', 'A19A', 'REM-A19a', 'REM-A19A',
+            'A23', 'REM-A23',
+            'A24', 'REM-A24',
+            'A26', 'REM-A26',
+            'A27', 'REM-A27',
+            'A32', 'REM-A32',
+            'A33', 'REM-A33',
+            'P1', 'P01', 'REM-P1', 'REM-P01',
+            'P2', 'P02', 'REM-P2', 'REM-P02',
+            'P3', 'P03', 'REM-P3', 'REM-P03',
+            'P4', 'P04', 'REM-P4', 'REM-P04',
+            'P6', 'P06', 'REM-P6', 'REM-P06',
+            'P12', 'P-12', 'REM-P12',
         ];
         $sheetsToLoad = array_values(array_intersect($sheetNames, $targetSheets));
 
@@ -82,6 +103,93 @@ class RemReaderService
         }
 
         return $this->loadSpreadsheet($filePath, $sheetsToLoad);
+    }
+
+    /**
+     * Resuelve una hoja de trabajo buscando entre nombres candidatos o alias comunes.
+     */
+    public function getSheet(Spreadsheet $spreadsheet, string ...$candidates): ?Worksheet
+    {
+        $sheetNames = $spreadsheet->getSheetNames();
+        foreach ($candidates as $candidate) {
+            if ($spreadsheet->sheetNameExists($candidate)) {
+                return $spreadsheet->getSheetByName($candidate);
+            }
+            foreach ($sheetNames as $name) {
+                if (strcasecmp($name, $candidate) === 0) {
+                    return $spreadsheet->getSheetByName($name);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Obtiene el valor numérico calculado de una celda, controlando errores de fórmula y vacíos.
+     */
+    public function getCalculatedCell(?Worksheet $sheet, string $coord): ?float
+    {
+        if ($sheet === null) {
+            return null;
+        }
+
+        try {
+            $cell = $sheet->getCell($coord);
+            $val = $cell->getCalculatedValue();
+
+            return is_numeric($val) ? (float) $val : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Suma los valores numéricos calculados de una lista de coordenadas de celdas.
+     *
+     * @param  list<string>  $coords
+     */
+    public function sumCalculatedCells(?Worksheet $sheet, array $coords): float
+    {
+        if ($sheet === null) {
+            return 0.0;
+        }
+
+        $sum = 0.0;
+        foreach ($coords as $coord) {
+            $val = $this->getCalculatedCell($sheet, trim($coord));
+            if ($val !== null) {
+                $sum += $val;
+            }
+        }
+
+        return $sum;
+    }
+
+    /**
+     * Suma los valores numéricos calculados en un rango de celdas bidimensional.
+     */
+    public function sumCellRange(?Worksheet $sheet, string $startCol, int $startRow, string $endCol, int $endRow): float
+    {
+        if ($sheet === null) {
+            return 0.0;
+        }
+
+        $startColIdx = Coordinate::columnIndexFromString($startCol);
+        $endColIdx = Coordinate::columnIndexFromString($endCol);
+        $sum = 0.0;
+
+        for ($r = $startRow; $r <= $endRow; $r++) {
+            for ($c = $startColIdx; $c <= $endColIdx; $c++) {
+                $colLetter = Coordinate::stringFromColumnIndex($c);
+                $val = $this->getCalculatedCell($sheet, "{$colLetter}{$r}");
+                if ($val !== null) {
+                    $sum += $val;
+                }
+            }
+        }
+
+        return $sum;
     }
 
     /**
@@ -211,7 +319,8 @@ class RemReaderService
 
     /**
      * Extrae numeradores y denominadores de la planilla REM tanto para
-     * Metas Sanitarias Ley 19.813 como para indicadores IAAPS 2025.
+     * Metas Sanitarias Ley 19.813 como para indicadores IAAPS 2025,
+     * siguiendo estrictamente las Orientaciones Técnicas ministeriales.
      *
      * @return array<string, array{
      *     numerador: ?float,
@@ -222,265 +331,204 @@ class RemReaderService
      */
     public function extractNumeradores(Spreadsheet $spreadsheet): array
     {
-        $sheetNames = $spreadsheet->getSheetNames();
         $results = [];
 
         // ==========================================
         // 1. METAS SANITARIAS LEY 19.813 (2026)
         // ==========================================
 
-        // MS-01: Desarrollo Psicomotor (EEDP) 12-23 meses -> Hoja A03
-        if (in_array('A03', $sheetNames, true)) {
-            $sheet = $spreadsheet->getSheetByName('A03');
-            $highestRow = min($sheet->getHighestRow(), 70);
+        // MS-01: Desarrollo Psicomotor (EEDP) 12-23 meses -> Hoja REM-A03 (Sección A.2)
+        // Numerador: J26..M26 + J28..M28
+        // Denominador: (J23..M23) - (J37..M37 + J40..M40)
+        $sheetA03 = $this->getSheet($spreadsheet, 'A03', 'A3', 'REM-A03', 'REM-A3');
+        if ($sheetA03 !== null) {
+            $numCoords = ['J26', 'K26', 'L26', 'M26', 'J28', 'K28', 'L28', 'M28'];
+            $denPart1 = ['J23', 'K23', 'L23', 'M23'];
+            $denPart2 = ['J37', 'K37', 'L37', 'M37', 'J40', 'K40', 'L40', 'M40'];
 
-            $sumCols1223 = function (int $row) use ($sheet): float {
-                $sum = 0.0;
-                foreach (['J', 'K', 'L', 'M'] as $col) {
-                    $v = $sheet->getCell("{$col}{$row}")->getValue();
-                    if (is_numeric($v)) {
-                        $sum += (float) $v;
+            $numNormalReeval = $this->sumCalculatedCells($sheetA03, $numCoords);
+            $denRiesgoRetraso = $this->sumCalculatedCells($sheetA03, $denPart1) - $this->sumCalculatedCells($sheetA03, $denPart2);
+
+            // Fallback por análisis de texto si las celdas directas estuvieran vacías en otra variante
+            if ($numNormalReeval === 0.0 && $denRiesgoRetraso <= 0.0) {
+                $highestRow = min($sheetA03->getHighestRow(), 70);
+                for ($r = 15; $r <= $highestRow; $r++) {
+                    $act = trim((string) $sheetA03->getCell("A{$r}")->getValue());
+                    $res = trim((string) $sheetA03->getCell("B{$r}")->getValue());
+                    $rowVal = $this->sumCalculatedCells($sheetA03, ["J{$r}", "K{$r}", "L{$r}", "M{$r}"]);
+
+                    if (stripos($res, 'Riesgo') !== false && stripos($res, 'desde') === false && stripos($act, 'Traslado') === false) {
+                        $denRiesgoRetraso += $rowVal;
+                    } elseif (stripos($res, 'Retraso') !== false && stripos($res, 'desde') === false && stripos($act, 'Traslado') === false) {
+                        $denRiesgoRetraso += $rowVal;
                     }
-                }
 
-                return $sum;
-            };
-
-            $numNormalReeval = 0.0;
-            $denRiesgoRetraso = 0.0;
-            $detalles = [];
-
-            for ($r = 15; $r <= $highestRow; $r++) {
-                $act = trim((string) $sheet->getCell("A{$r}")->getValue());
-                $res = trim((string) $sheet->getCell("B{$r}")->getValue());
-
-                if (stripos($res, 'Riesgo') !== false && stripos($res, 'desde') === false && stripos($act, 'Traslado') === false) {
-                    $val = $sumCols1223($r);
-                    $denRiesgoRetraso += $val;
-                    $detalles['primera_eval_riesgo_r'.$r] = $val;
-                } elseif (stripos($res, 'Retraso') !== false && stripos($res, 'desde') === false && stripos($act, 'Traslado') === false) {
-                    $val = $sumCols1223($r);
-                    $denRiesgoRetraso += $val;
-                    $detalles['primera_eval_retraso_r'.$r] = $val;
-                }
-
-                if (stripos($res, 'Normal (desde riesgo)') !== false) {
-                    $val = $sumCols1223($r);
-                    $numNormalReeval += $val;
-                    $detalles['reeval_normal_desde_riesgo_r'.$r] = $val;
-                } elseif (stripos($res, 'Normal (desde retraso)') !== false) {
-                    $val = $sumCols1223($r);
-                    $numNormalReeval += $val;
-                    $detalles['reeval_normal_desde_retraso_r'.$r] = $val;
-                }
-            }
-
-            $results['MS-01'] = [
-                'numerador' => $numNormalReeval,
-                'denominador' => $denRiesgoRetraso > 0 ? $denRiesgoRetraso : null,
-                'fuente' => 'REM-A03 (Sección A.2)',
-                'detalles' => $detalles,
-            ];
-        }
-
-        // MS-03: Odontología (Pauta CERO 0-9 años y Altas 12 años) -> Hoja A09
-        if (in_array('A09', $sheetNames, true)) {
-            $sheet = $spreadsheet->getSheetByName('A09');
-            $highestRow = min($sheet->getHighestRow(), 80);
-
-            $cero09 = 0.0;
-            $altas12 = 0.0;
-            $detalles = [];
-
-            for ($r = 40; $r <= $highestRow; $r++) {
-                $act = trim((string) $sheet->getCell("A{$r}")->getValue());
-
-                if (stripos($act, 'cero') !== false && stripos($act, 'ingreso') !== false) {
-                    for ($c = 7; $c <= 28; $c++) {
-                        $colLetter = Coordinate::stringFromColumnIndex($c);
-                        $v = $sheet->getCell("{$colLetter}{$r}")->getValue();
-                        if (is_numeric($v)) {
-                            $cero09 += (float) $v;
-                        }
-                    }
-                    $detalles['ingresos_pauta_cero_0_9'] = $cero09;
-                }
-
-                if (stripos($act, 'alta') !== false && stripos($act, 'odontol') !== false) {
-                    $valS = (float) $sheet->getCell("S{$r}")->getValue();
-                    $valT = (float) $sheet->getCell("T{$r}")->getValue();
-                    $altas12 = $valS + $valT;
-                    $detalles['altas_odontologicas'] = $altas12;
-                }
-            }
-
-            $results['MS-03'] = [
-                'numerador' => $cero09 > 0 ? $cero09 : ($altas12 > 0 ? $altas12 : 0.0),
-                'denominador' => null,
-                'fuente' => 'REM-A09 (Sección C)',
-                'detalles' => $detalles,
-            ];
-        }
-
-        // MS-06: Lactancia Materna Exclusiva al 6° mes -> Hoja A24 o A27
-        foreach (['A24', 'A27'] as $lmeSheet) {
-            if (in_array($lmeSheet, $sheetNames, true)) {
-                $sheet = $spreadsheet->getSheetByName($lmeSheet);
-                $highestRow = min($sheet->getHighestRow(), 180);
-
-                for ($r = 10; $r <= $highestRow; $r++) {
-                    $txt = trim((string) $sheet->getCell("A{$r}")->getValue());
-                    if (stripos($txt, 'lactancia materna exclusiva') !== false) {
-                        $v = $sheet->getCell("C{$r}")->getValue();
-                        if (is_numeric($v) && (float) $v > 0) {
-                            $results['MS-06'] = [
-                                'numerador' => (float) $v,
-                                'denominador' => null,
-                                'fuente' => "REM-{$lmeSheet}",
-                                'detalles' => ['fila' => $r, 'texto' => $txt],
-                            ];
-                            break 2;
-                        }
-                    }
-                }
-            }
-        }
-
-        // ==========================================
-        // 2. INDICADORES IAAPS 2025
-        // ==========================================
-
-        // IAAPS-03: Tasa de consultas médicas de morbilidad -> Hoja A04 (R12 celda B12)
-        if (in_array('A04', $sheetNames, true)) {
-            $sheet = $spreadsheet->getSheetByName('A04');
-            $valMorb = $sheet->getCell('B12')->getCalculatedValue();
-
-            if (is_numeric($valMorb) && (float) $valMorb > 0) {
-                $results['IAAPS-03'] = [
-                    'numerador' => (float) $valMorb,
-                    'denominador' => null, // Se asigna con la población inscrita validada
-                    'fuente' => 'REM-A04 (Sección A, Fila 12)',
-                    'detalles' => ['consultas_medicas_total' => (float) $valMorb],
-                ];
-
-                // IAAPS-04: Denominador total de consultas médicas realizadas en APS
-                $results['IAAPS-04'] = [
-                    'numerador' => null, // SIC generadas
-                    'denominador' => (float) $valMorb,
-                    'fuente' => 'REM-A04',
-                    'detalles' => ['total_consultas_medicas' => (float) $valMorb],
-                ];
-            }
-        }
-
-        // IAAPS-06.1A y IAAPS-06.1B: Cobertura EMP Mujeres y Hombres (20-64 años) -> Hoja A02
-        if (in_array('A02', $sheetNames, true)) {
-            $sheet = $spreadsheet->getSheetByName('A02');
-            $empHombres = (float) $sheet->getCell('C11')->getCalculatedValue();
-            $empMujeres = (float) $sheet->getCell('D11')->getCalculatedValue();
-
-            if ($empMujeres > 0) {
-                $results['IAAPS-06.1A'] = [
-                    'numerador' => $empMujeres,
-                    'denominador' => null, // Población mujeres 20-64 menos embarazadas
-                    'fuente' => 'REM-A02 (Sección A, Fila 11)',
-                    'detalles' => ['emp_mujeres_total' => $empMujeres],
-                ];
-            }
-
-            if ($empHombres > 0) {
-                $results['IAAPS-06.1B'] = [
-                    'numerador' => $empHombres,
-                    'denominador' => null, // Población hombres 20-64
-                    'fuente' => 'REM-A02 (Sección A, Fila 11)',
-                    'detalles' => ['emp_hombres_total' => $empHombres],
-                ];
-            }
-        }
-
-        // IAAPS-07: Cobertura DSM evaluado en niños(as) de 12 a 23 meses -> Hoja A03
-        if (in_array('A03', $sheetNames, true)) {
-            $sheet = $spreadsheet->getSheetByName('A03');
-            $dsmEvaluados = 0.0;
-            for ($r = 21; $r <= 24; $r++) {
-                foreach (['J', 'K', 'L', 'M'] as $col) {
-                    $v = $sheet->getCell("{$col}{$r}")->getValue();
-                    if (is_numeric($v)) {
-                        $dsmEvaluados += (float) $v;
+                    if (stripos($res, 'Normal (desde riesgo)') !== false || stripos($res, 'Normal (desde retraso)') !== false) {
+                        $numNormalReeval += $rowVal;
                     }
                 }
             }
 
-            if ($dsmEvaluados > 0) {
-                $results['IAAPS-07'] = [
-                    'numerador' => $dsmEvaluados,
-                    'denominador' => null, // Población niños 12-23m bajo control
+            if ($numNormalReeval > 0 || $denRiesgoRetraso > 0) {
+                $results['MS-01'] = [
+                    'numerador' => $numNormalReeval,
+                    'denominador' => $denRiesgoRetraso > 0 ? $denRiesgoRetraso : null,
                     'fuente' => 'REM-A03 (Sección A.2)',
-                    'detalles' => ['dsm_evaluados_12_23m' => $dsmEvaluados],
-                ];
-            }
-        }
-
-        // IAAPS-12: Ingreso precoz de mujeres a control de embarazo antes de las 14 semanas -> Hoja A05
-        if (in_array('A05', $sheetNames, true)) {
-            $sheet = $spreadsheet->getSheetByName('A05');
-            $gestAntes14 = (float) $sheet->getCell('C13')->getCalculatedValue();
-            $gestTotal = (float) $sheet->getCell('C11')->getCalculatedValue();
-
-            if ($gestTotal > 0) {
-                $results['IAAPS-12'] = [
-                    'numerador' => $gestAntes14,
-                    'denominador' => $gestTotal,
-                    'fuente' => 'REM-A05 (Sección A, Filas 11 y 13)',
                     'detalles' => [
-                        'ingresadas_antes_14_sem' => $gestAntes14,
-                        'total_gestantes_ingresadas' => $gestTotal,
+                        'recuperados_normal' => $numNormalReeval,
+                        'primeras_eval_riesgo_netas' => $denRiesgoRetraso,
                     ],
                 ];
             }
         }
 
-        // ==========================================
-        // 3. ARCHIVOS SERIE P (P12, P4, P2, P6)
-        // ==========================================
-        if (in_array('P12', $sheetNames, true)) {
-            $sheet = $spreadsheet->getSheetByName('P12');
-            $valPap = $sheet->getCell('D10')->getValue() ?? $sheet->getCell('B10')->getValue();
-            if (is_numeric($valPap)) {
-                $results['MS-02'] = [
-                    'numerador' => (float) $valPap,
-                    'denominador' => null,
-                    'fuente' => 'REM-P12 (Sección A)',
-                    'detalles' => ['pap_vigentes' => (float) $valPap],
+        // MS-03: Salud Bucal Infantil -> Hoja REM-A03 (Sección D.7) y REM-A09 (Sección C)
+        // Submeta III.A: Fila 206 (F206:Y206) + Fila 207 (F207:Y207)
+        // Submeta III.B: Celdas S51 + T51 (CEOD = 0 en 6 años)
+        $sheetA09 = $this->getSheet($spreadsheet, 'A09', 'A9', 'REM-A09', 'REM-A9');
+        $cero09 = 0.0;
+        $libresCaries6a = 0.0;
+
+        if ($sheetA03 !== null) {
+            $cero09 = $this->sumCellRange($sheetA03, 'F', 206, 'Y', 207);
+        }
+
+        if ($sheetA09 !== null) {
+            $libresCaries6a = $this->sumCalculatedCells($sheetA09, ['S51', 'T51']);
+            if ($cero09 === 0.0) {
+                $highestRow = min($sheetA09->getHighestRow(), 80);
+                for ($r = 40; $r <= $highestRow; $r++) {
+                    $act = trim((string) $sheetA09->getCell("A{$r}")->getValue());
+                    if (stripos($act, 'cero') !== false && stripos($act, 'ingreso') !== false) {
+                        $cero09 = $this->sumCellRange($sheetA09, 'G', $r, 'AB', $r);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ($cero09 > 0 || $libresCaries6a > 0) {
+            $results['MS-03'] = [
+                'numerador' => $cero09 > 0 ? $cero09 : $libresCaries6a,
+                'denominador' => null, // Población inscrita validada FONASA (0 a 9 años)
+                'fuente' => $cero09 > 0 ? 'REM-A03 (Sección D.7)' : 'REM-A09 (Sección C)',
+                'detalles' => [
+                    'pauta_cero_0_9' => $cero09,
+                    'libres_caries_6_anos' => $libresCaries6a,
+                ],
+            ];
+        }
+
+        // MS-06: Lactancia Materna Exclusiva al 6° mes -> Hoja REM-A03 (Sección A.5)
+        // Numerador: Celda H61 (Código A0200002)
+        // Denominador: Celda H67 (Código A0200001)
+        if ($sheetA03 !== null) {
+            $lmeNum = $this->getCalculatedCell($sheetA03, 'H61');
+            $lmeDen = $this->getCalculatedCell($sheetA03, 'H67');
+
+            if ($lmeNum !== null && $lmeNum > 0) {
+                $results['MS-06'] = [
+                    'numerador' => $lmeNum,
+                    'denominador' => ($lmeDen !== null && $lmeDen > 0) ? $lmeDen : null,
+                    'fuente' => 'REM-A03 (Sección A.5, H61/H67)',
+                    'detalles' => [
+                        'lme_6m' => $lmeNum,
+                        'total_control_6m' => $lmeDen,
+                    ],
                 ];
             }
         }
 
-        if (in_array('P4', $sheetNames, true)) {
-            $sheet = $spreadsheet->getSheetByName('P4');
-            $dmComp = (float) $sheet->getCell('C31')->getValue();
-            $htaComp = (float) $sheet->getCell('C29')->getValue();
-            $dmBajoControl = (float) $sheet->getCell('C17')->getValue();
-            $htaBajoControl = (float) $sheet->getCell('C16')->getValue();
+        // Fallback MS-06 por escaneo A24/A27 si no se encontró en A03
+        if (! isset($results['MS-06'])) {
+            $sheetLme = $this->getSheet($spreadsheet, 'A24', 'A27', 'REM-A24', 'REM-A27');
+            if ($sheetLme !== null) {
+                $highestRow = min($sheetLme->getHighestRow(), 180);
+                for ($r = 10; $r <= $highestRow; $r++) {
+                    $txt = trim((string) $sheetLme->getCell("A{$r}")->getValue());
+                    if (stripos($txt, 'lactancia materna exclusiva') !== false) {
+                        $v = $this->getCalculatedCell($sheetLme, "C{$r}");
+                        if ($v !== null && $v > 0) {
+                            $results['MS-06'] = [
+                                'numerador' => $v,
+                                'denominador' => null,
+                                'fuente' => 'REM-'.$sheetLme->getTitle(),
+                                'detalles' => ['fila' => $r, 'texto' => $txt],
+                            ];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
-            if ($dmComp > 0) {
-                $results['MS-04'] = [
-                    'numerador' => $dmComp,
-                    'denominador' => null,
-                    'fuente' => 'REM-P4 (Sección B)',
-                    'detalles' => ['hba1c_menor_7' => $dmComp],
+        // MS-02: Cáncer Cuello Uterino (PAP / VPH 25 a 64 años) -> Hoja REM-P12 (Sección A.1)
+        // Celdas B12..B19 (Códigos P1206010 al P1206080)
+        $sheetP12 = $this->getSheet($spreadsheet, 'P12', 'P-12', 'REM-P12', 'REM-P-12');
+        if ($sheetP12 !== null) {
+            $papCells = ['B12', 'B13', 'B14', 'B15', 'B16', 'B17', 'B18', 'B19'];
+            $valPap = $this->sumCalculatedCells($sheetP12, $papCells);
+            if ($valPap === 0.0) {
+                $valPap = (float) ($this->getCalculatedCell($sheetP12, 'D10') ?? $this->getCalculatedCell($sheetP12, 'B10') ?? 0);
+            }
+
+            if ($valPap > 0) {
+                $results['MS-02'] = [
+                    'numerador' => $valPap,
+                    'denominador' => null, // Población inscrita validada FONASA (25 a 64 años)
+                    'fuente' => 'REM-P12 (Sección A.1, B12:B19)',
+                    'detalles' => ['pap_tamizaje_vigente_25_64' => $valPap],
                 ];
             }
+        }
+
+        // MS-04 y MS-05: Hoja REM P4 (Sección B y C)
+        $sheetP4 = $this->getSheet($spreadsheet, 'P4', 'P04', 'REM-P4', 'REM-P04');
+        if ($sheetP4 !== null) {
+            // META IV.A (DM2 Compensadas): HbA1c < 7% (Fila 31 C31) + HbA1c < 8% (Fila 32 C32)
+            $dmComp = (float) ($this->getCalculatedCell($sheetP4, 'C31') ?? 0) + (float) ($this->getCalculatedCell($sheetP4, 'C32') ?? 0);
+            if ($dmComp === 0.0) {
+                $dmComp = (float) ($this->getCalculatedCell($sheetP4, 'C30') ?? 0) + (float) ($this->getCalculatedCell($sheetP4, 'C31') ?? 0);
+            }
+
+            // META IV.B (Pie Diabético): Celdas C62..C65 (y C61 si aplica), Denominador: C17
+            $pieDiab = $this->sumCalculatedCells($sheetP4, ['C61', 'C62', 'C63', 'C64', 'C65']);
+            $dmBajoControl = (float) ($this->getCalculatedCell($sheetP4, 'C17') ?? 0);
+
+            if ($dmComp > 0 || $pieDiab > 0) {
+                $results['MS-04'] = [
+                    'numerador' => $dmComp > 0 ? $dmComp : $pieDiab,
+                    'denominador' => null, // Estimada por prevalencia ENS
+                    'fuente' => 'REM-P4 (Sección B y C)',
+                    'detalles' => [
+                        'dm2_compensada' => $dmComp,
+                        'pie_diabetico_evaluado' => $pieDiab,
+                        'dm2_bajo_control_c17' => $dmBajoControl,
+                    ],
+                ];
+            }
+
+            // META V (HTA Compensadas): PA < 140/90 (Fila 29 C29) + PA < 150/90 (Fila 30 C30)
+            $htaComp = (float) ($this->getCalculatedCell($sheetP4, 'C29') ?? 0) + (float) ($this->getCalculatedCell($sheetP4, 'C30') ?? 0);
+            if ($htaComp === 0.0) {
+                $htaComp = (float) ($this->getCalculatedCell($sheetP4, 'C28') ?? 0) + (float) ($this->getCalculatedCell($sheetP4, 'C29') ?? 0);
+            }
+
+            $htaBajoControl = (float) ($this->getCalculatedCell($sheetP4, 'C16') ?? 0);
 
             if ($htaComp > 0) {
                 $results['MS-05'] = [
                     'numerador' => $htaComp,
-                    'denominador' => null,
+                    'denominador' => null, // Estimada por prevalencia ENS
                     'fuente' => 'REM-P4 (Sección B)',
-                    'detalles' => ['pa_menor_140_90' => $htaComp],
+                    'detalles' => [
+                        'hta_compensada' => $htaComp,
+                        'hta_bajo_control_c16' => $htaBajoControl,
+                    ],
                 ];
             }
 
+            // IAAPS-14: DM2 Bajo Control (P4 Sección A, C17)
             if ($dmBajoControl > 0) {
                 $results['IAAPS-14'] = [
                     'numerador' => $dmBajoControl,
@@ -490,6 +538,7 @@ class RemReaderService
                 ];
             }
 
+            // IAAPS-15: HTA Bajo Control (P4 Sección A, C16)
             if ($htaBajoControl > 0) {
                 $results['IAAPS-15'] = [
                     'numerador' => $htaBajoControl,
@@ -500,17 +549,345 @@ class RemReaderService
             }
         }
 
-        if (in_array('P2', $sheetNames, true)) {
-            $sheet = $spreadsheet->getSheetByName('P2');
-            $nutrNormal = (float) $sheet->getCell('C36')->getValue();
-            $nutrTotal = (float) $sheet->getCell('C12')->getValue();
+        // MS-07: Cobertura Asma y EPOC (5+ años) -> Hoja REM P3 (Sección D)
+        // Asma: H59..AM59 + EPOC: C63
+        $sheetP3 = $this->getSheet($spreadsheet, 'P3', 'P03', 'REM-P3', 'REM-P03');
+        if ($sheetP3 !== null) {
+            $asmaCols = [];
+            for ($c = Coordinate::columnIndexFromString('H'); $c <= Coordinate::columnIndexFromString('AM'); $c++) {
+                $asmaCols[] = Coordinate::stringFromColumnIndex($c).'59';
+            }
+            $asmaNum = $this->sumCalculatedCells($sheetP3, $asmaCols);
+            $epocNum = (float) ($this->getCalculatedCell($sheetP3, 'C63') ?? 0);
+            $totalResp = $asmaNum + $epocNum;
+
+            if ($totalResp > 0) {
+                $results['MS-07'] = [
+                    'numerador' => $totalResp,
+                    'denominador' => null, // Prevalencia nacional
+                    'fuente' => 'REM-P3 (Sección D)',
+                    'detalles' => [
+                        'asma_controlado' => $asmaNum,
+                        'epoc_adecuado' => $epocNum,
+                    ],
+                ];
+            }
+        }
+
+        // ==========================================
+        // 2. INDICADORES IAAPS 2025
+        // ==========================================
+
+        $sheetA01 = $this->getSheet($spreadsheet, 'A01', 'A1', 'REM-A01', 'REM-A1');
+        $sheetA02 = $this->getSheet($spreadsheet, 'A02', 'A2', 'REM-A02', 'REM-A2');
+        $sheetA04 = $this->getSheet($spreadsheet, 'A04', 'A4', 'REM-A04', 'REM-A4');
+        $sheetA05 = $this->getSheet($spreadsheet, 'A05', 'A5', 'REM-A05', 'REM-A5');
+        $sheetA06 = $this->getSheet($spreadsheet, 'A06', 'A6', 'REM-A06', 'REM-A6');
+        $sheetA07 = $this->getSheet($spreadsheet, 'A07', 'A7', 'REM-A07', 'REM-A7');
+        $sheetA08 = $this->getSheet($spreadsheet, 'A08', 'A8', 'REM-A08', 'REM-A8');
+        $sheetA19 = $this->getSheet($spreadsheet, 'A19a', 'A19A', 'REM-A19a', 'REM-A19A');
+        $sheetA23 = $this->getSheet($spreadsheet, 'A23', 'REM-A23');
+        $sheetA26 = $this->getSheet($spreadsheet, 'A26', 'REM-A26');
+        $sheetA32 = $this->getSheet($spreadsheet, 'A32', 'REM-A32');
+        $sheetA33 = $this->getSheet($spreadsheet, 'A33', 'REM-A33');
+        $sheetP1 = $this->getSheet($spreadsheet, 'P1', 'P01', 'REM-P1', 'REM-P01');
+        $sheetP2 = $this->getSheet($spreadsheet, 'P2', 'P02', 'REM-P2', 'REM-P02');
+        $sheetP6 = $this->getSheet($spreadsheet, 'P6', 'P06', 'REM-P6', 'REM-P06');
+
+        // IAAPS-03: Tasa de consultas médicas de morbilidad
+        // Numerador: A04:B12 + A07:(Z121+AA121) + A08:B41 + A23:B58 + A32:(B28+B29)
+        $a04_b12 = (float) ($this->getCalculatedCell($sheetA04, 'B12') ?? 0);
+        $a07_morb = $this->sumCalculatedCells($sheetA07, ['Z121', 'AA121']);
+        $a08_b41 = (float) ($this->getCalculatedCell($sheetA08, 'B41') ?? 0);
+        $a23_b58 = (float) ($this->getCalculatedCell($sheetA23, 'B58') ?? 0);
+        $a32_morb = $this->sumCalculatedCells($sheetA32, ['B28', 'B29']);
+        $totalMorb = $a04_b12 + $a07_morb + $a08_b41 + $a23_b58 + $a32_morb;
+
+        if ($totalMorb > 0) {
+            $results['IAAPS-03'] = [
+                'numerador' => $totalMorb,
+                'denominador' => null, // Población inscrita validada FONASA
+                'fuente' => 'REM Serie A (A04, A07, A08, A23, A32)',
+                'detalles' => [
+                    'a04_b12' => $a04_b12,
+                    'a07_z121_aa121' => $a07_morb,
+                    'a08_b41' => $a08_b41,
+                    'a23_b58' => $a23_b58,
+                    'a32_b28_b29' => $a32_morb,
+                ],
+            ];
+        }
+
+        // IAAPS-04: Porcentaje de derivación al nivel secundario
+        // Numerador: REM A07 (Sección A.1): AE126 + AF126
+        // Denominador: A01 + A04 + A06 + A07 + A08 + A23 + A32
+        $sicNum = $this->sumCalculatedCells($sheetA07, ['AE126', 'AF126']);
+        $denA01 = $this->sumCalculatedCells($sheetA01, [
+            'C11', 'C13', 'C15', 'C17', 'C19', 'C21', 'C23', 'C25', 'C27', 'C29', 'C31',
+            'C36',
+            'C44', 'C48', 'C51', 'C54', 'C57', 'C63',
+        ]);
+        $denA06 = (float) ($this->getCalculatedCell($sheetA06, 'C12') ?? 0);
+        $denA23 = (float) ($this->getCalculatedCell($sheetA23, 'B58') ?? 0) + (float) ($this->getCalculatedCell($sheetA23, 'B63') ?? 0);
+        $denA32 = $this->sumCalculatedCells($sheetA32, ['B28', 'B29', 'C130', 'C141']);
+        $totalConsultasAPS = $denA01 + $a04_b12 + $denA06 + $a07_morb + $a08_b41 + $denA23 + $denA32;
+
+        if ($sicNum > 0 || $totalConsultasAPS > 0) {
+            $results['IAAPS-04'] = [
+                'numerador' => $sicNum > 0 ? $sicNum : null,
+                'denominador' => $totalConsultasAPS > 0 ? $totalConsultasAPS : null,
+                'fuente' => 'REM Serie A (A07 / A01, A04, A06, A08, A23, A32)',
+                'detalles' => [
+                    'sic_derivaciones' => $sicNum,
+                    'total_consultas_aps' => $totalConsultasAPS,
+                ],
+            ];
+        }
+
+        // IAAPS-05: Tasa de visita domiciliaria integral
+        // Numerador: REM A26 (C10..C35 + C41..F41) + REM A33 (C39 + C40)
+        $a26Coords = [];
+        for ($r = 10; $r <= 35; $r++) {
+            $a26Coords[] = "C{$r}";
+        }
+        $vdiA26SecA = $this->sumCalculatedCells($sheetA26, $a26Coords);
+        $vdiA26SecA1 = $this->sumCalculatedCells($sheetA26, ['C41', 'D41', 'E41', 'F41']);
+        $vdiA33 = $this->sumCalculatedCells($sheetA33, ['C39', 'C40']);
+        $totalVdi = $vdiA26SecA + $vdiA26SecA1 + $vdiA33;
+
+        if ($totalVdi > 0) {
+            $results['IAAPS-05'] = [
+                'numerador' => $totalVdi,
+                'denominador' => null, // Se calcula con pobTotal / 3.3
+                'fuente' => 'REM-A26 y REM-A33',
+                'detalles' => [
+                    'vdi_a26_sec_a' => $vdiA26SecA,
+                    'vdi_a26_sec_a1' => $vdiA26SecA1,
+                    'vdi_a33' => $vdiA33,
+                ],
+            ];
+        }
+
+        // IAAPS-06.1A, 06.1B y 06.2: Cobertura EMP
+        // 6.1A Num: A02 Sección B (H21+I21+L21+N21+P21+R21+T21+V21+X21)
+        // Gestantes P1: B46..B52
+        // 6.1B Num: A02 Sección B (G21+I21+K21+M21+O21+Q21+S21+U21+W21)
+        // 6.2 Num: A02 Sección B (Y21..AF21)
+        if ($sheetA02 !== null) {
+            $empMujeres2064 = $this->sumCalculatedCells($sheetA02, ['H21', 'I21', 'L21', 'N21', 'P21', 'R21', 'T21', 'V21', 'X21']);
+            $empHombres2064 = $this->sumCalculatedCells($sheetA02, ['G21', 'I21', 'K21', 'M21', 'O21', 'Q21', 'S21', 'U21', 'W21']);
+            $empam65Mas = $this->sumCalculatedCells($sheetA02, ['Y21', 'Z21', 'AA21', 'AB21', 'AC21', 'AD21', 'AE21', 'AF21']);
+
+            // Fallback total sección A si la fila 21 no tuviera datos
+            if ($empMujeres2064 === 0.0) {
+                $empMujeres2064 = (float) ($this->getCalculatedCell($sheetA02, 'D11') ?? 0);
+            }
+            if ($empHombres2064 === 0.0) {
+                $empHombres2064 = (float) ($this->getCalculatedCell($sheetA02, 'C11') ?? 0);
+            }
+
+            $gestantesP1 = $this->sumCalculatedCells($sheetP1, ['B46', 'B47', 'B48', 'B49', 'B50', 'B51', 'B52']);
+
+            if ($empMujeres2064 > 0) {
+                $results['IAAPS-06.1A'] = [
+                    'numerador' => $empMujeres2064,
+                    'denominador' => null,
+                    'fuente' => 'REM-A02 (Sección B)',
+                    'detalles' => [
+                        'emp_mujeres_20_64' => $empMujeres2064,
+                        'gestantes_p1' => $gestantesP1,
+                    ],
+                ];
+            }
+
+            if ($empHombres2064 > 0) {
+                $results['IAAPS-06.1B'] = [
+                    'numerador' => $empHombres2064,
+                    'denominador' => null,
+                    'fuente' => 'REM-A02 (Sección B)',
+                    'detalles' => ['emp_hombres_20_64' => $empHombres2064],
+                ];
+            }
+
+            if ($empam65Mas > 0) {
+                $results['IAAPS-06.2'] = [
+                    'numerador' => $empam65Mas,
+                    'denominador' => null,
+                    'fuente' => 'REM-A02 (Sección B, Y21:AF21)',
+                    'detalles' => ['empam_65_mas' => $empam65Mas],
+                ];
+            }
+        }
+
+        // IAAPS-07: Cobertura DSM niños(as) 12 a 23 meses
+        // Numerador: A03 Sección A.2 (J21..M21 + J22..M22 + J23..M23 + J24..M24)
+        // Denominador: P2 Sección A (V12 + W12 + X12 + Y12)
+        if ($sheetA03 !== null) {
+            $dsmEvalCells = [];
+            for ($r = 21; $r <= 24; $r++) {
+                foreach (['J', 'K', 'L', 'M'] as $col) {
+                    $dsmEvalCells[] = "{$col}{$r}";
+                }
+            }
+            $dsmEvaluados = $this->sumCalculatedCells($sheetA03, $dsmEvalCells);
+            $pob1223Control = $this->sumCalculatedCells($sheetP2, ['V12', 'W12', 'X12', 'Y12']);
+
+            if ($dsmEvaluados > 0 || $pob1223Control > 0) {
+                $results['IAAPS-07'] = [
+                    'numerador' => $dsmEvaluados > 0 ? $dsmEvaluados : null,
+                    'denominador' => $pob1223Control > 0 ? $pob1223Control : null,
+                    'fuente' => 'REM-A03 (Sección A.2) / REM-P02 (Sección A)',
+                    'detalles' => [
+                        'dsm_evaluados_12_23m' => $dsmEvaluados,
+                        'ninos_12_23m_control' => $pob1223Control,
+                    ],
+                ];
+            }
+        }
+
+        // IAAPS-08: Salud Integral Adolescentes 10 a 19 años -> Hoja REM-A01 (Sección D)
+        // Celdas C74 + F74
+        if ($sheetA01 !== null) {
+            $saludAdol = $this->sumCalculatedCells($sheetA01, ['C74', 'F74']);
+            if ($saludAdol > 0) {
+                $results['IAAPS-08'] = [
+                    'numerador' => $saludAdol,
+                    'denominador' => null, // Población 10 a 19 años FONASA
+                    'fuente' => 'REM-A01 (Sección D, C74+F74)',
+                    'detalles' => ['controles_salud_adolescente' => $saludAdol],
+                ];
+            }
+        }
+
+        // IAAPS-09.1, 09.2, 09.3: Salud Mental
+        // Población bajo control = P6:C13 + A05:C193 - A05:(C245 + AN245 + AO245 + AP245)
+        $smP6 = (float) ($this->getCalculatedCell($sheetP6, 'C13') ?? 0);
+        $smA05Ingresos = (float) ($this->getCalculatedCell($sheetA05, 'C193') ?? 0);
+        $smA05Egresos = $this->sumCalculatedCells($sheetA05, ['C245', 'AN245', 'AO245', 'AP245']);
+        $smPoblacionControl = max(0.0, $smP6 + $smA05Ingresos - $smA05Egresos);
+
+        // 9.2: Controles de salud mental
+        $controlesSM = $this->sumCalculatedCells($sheetA06, ['C22', 'C23'])
+            + (float) ($this->getCalculatedCell($sheetA06, 'E32') ?? 0)
+            + $this->sumCalculatedCells($sheetA19, ['C110', 'C112'])
+            + $this->sumCalculatedCells($sheetA26, ['C30', 'C31', 'C38', 'D38', 'E38', 'F38'])
+            + $this->sumCalculatedCells($sheetA32, ['B123', 'B124', 'B125', 'C140', 'C151'])
+            + (float) ($this->getCalculatedCell($sheetA04, 'B24') ?? 0);
+
+        // 9.3: Altas clínicas
+        $altasClinicas = (float) ($this->getCalculatedCell($sheetA05, 'C245') ?? 0);
+
+        if ($smPoblacionControl > 0 || $controlesSM > 0) {
+            $results['IAAPS-09.1'] = [
+                'numerador' => $smPoblacionControl > 0 ? $smPoblacionControl : null,
+                'denominador' => null, // 22% prevalencia referencial
+                'fuente' => 'REM-P06 (A.1) / REM-A05 (N y O)',
+                'detalles' => [
+                    'pob_control_sm' => $smPoblacionControl,
+                    'p6_c13' => $smP6,
+                    'a05_ingresos' => $smA05Ingresos,
+                    'a05_egresos' => $smA05Egresos,
+                ],
+            ];
+
+            $results['IAAPS-09.2'] = [
+                'numerador' => $controlesSM > 0 ? $controlesSM : null,
+                'denominador' => $smPoblacionControl > 0 ? $smPoblacionControl : null,
+                'fuente' => 'REM Serie A (A06, A19a, A26, A32, A04)',
+                'detalles' => [
+                    'controles_totales' => $controlesSM,
+                    'pob_control_sm' => $smPoblacionControl,
+                ],
+            ];
+
+            $results['IAAPS-09.3'] = [
+                'numerador' => $altasClinicas,
+                'denominador' => $smPoblacionControl > 0 ? $smPoblacionControl : null,
+                'fuente' => 'REM-A05 (Sección O)',
+                'detalles' => [
+                    'altas_clinicas' => $altasClinicas,
+                    'pob_control_sm' => $smPoblacionControl,
+                ],
+            ];
+        }
+
+        // IAAPS-12: Ingreso precoz de mujeres a control de embarazo antes de las 14 semanas -> Hoja A05
+        if ($sheetA05 !== null) {
+            $gestAntes14 = $this->getCalculatedCell($sheetA05, 'C13');
+            $gestTotal = $this->getCalculatedCell($sheetA05, 'C11');
+
+            if ($gestTotal !== null && $gestTotal > 0) {
+                $results['IAAPS-12'] = [
+                    'numerador' => $gestAntes14 ?? 0.0,
+                    'denominador' => $gestTotal,
+                    'fuente' => 'REM-A05 (Sección A, C11 y C13)',
+                    'detalles' => [
+                        'ingresadas_antes_14_sem' => $gestAntes14 ?? 0.0,
+                        'total_gestantes_ingresadas' => $gestTotal,
+                    ],
+                ];
+            }
+        }
+
+        // IAAPS-13: Regulación de fertilidad en adolescentes de 15 a 19 años -> Hoja REM-P01 (Sección A)
+        if ($sheetP1 !== null) {
+            $fertAdol = $this->getCalculatedCell($sheetP1, 'E25');
+            if ($fertAdol !== null && $fertAdol > 0) {
+                $results['IAAPS-13'] = [
+                    'numerador' => $fertAdol,
+                    'denominador' => null, // Población 15 a 19 años FONASA
+                    'fuente' => 'REM-P01 (Sección A, E25)',
+                    'detalles' => ['regulacion_fertilidad_15_19' => $fertAdol],
+                ];
+            }
+        }
+
+        // IAAPS-16: Libre de caries en menores de 3 años -> Hoja REM-A09 (Sección C)
+        // Celdas G51 + H51 + I51 + J51 + K51 + L51
+        if ($sheetA09 !== null) {
+            $ceod0Menores3 = $this->sumCalculatedCells($sheetA09, ['G51', 'H51', 'I51', 'J51', 'K51', 'L51']);
+            if ($ceod0Menores3 > 0) {
+                $results['IAAPS-16'] = [
+                    'numerador' => $ceod0Menores3,
+                    'denominador' => null, // Población menores de 3 años FONASA
+                    'fuente' => 'REM-A09 (Sección C, G51:L51)',
+                    'detalles' => ['libres_caries_menores_3' => $ceod0Menores3],
+                ];
+            }
+        }
+
+        // IAAPS-17: Prevalencia normalidad en menores de 2 años bajo control -> Hoja REM-P02 (Sección A)
+        // Numerador: H36..Y36 (18 columnas de normalidad nutricional)
+        // Denominador: H12..Y12 (18 columnas de población bajo control)
+        if ($sheetP2 !== null) {
+            $nutrCols = [];
+            for ($c = Coordinate::columnIndexFromString('H'); $c <= Coordinate::columnIndexFromString('Y'); $c++) {
+                $colL = Coordinate::stringFromColumnIndex($c);
+                $nutrCols[] = $colL;
+            }
+            $numCoords = array_map(fn ($col) => "{$col}36", $nutrCols);
+            $denCoords = array_map(fn ($col) => "{$col}12", $nutrCols);
+
+            $nutrNormal = $this->sumCalculatedCells($sheetP2, $numCoords);
+            $nutrTotal = $this->sumCalculatedCells($sheetP2, $denCoords);
+
+            // Fallback C36 y C12
+            if ($nutrNormal === 0.0) {
+                $nutrNormal = (float) ($this->getCalculatedCell($sheetP2, 'C36') ?? 0);
+            }
+            if ($nutrTotal === 0.0) {
+                $nutrTotal = (float) ($this->getCalculatedCell($sheetP2, 'C12') ?? 0);
+            }
 
             if ($nutrNormal > 0 && $nutrTotal > 0) {
                 $results['IAAPS-17'] = [
                     'numerador' => $nutrNormal,
                     'denominador' => $nutrTotal,
-                    'fuente' => 'REM-P2 (Sección A)',
-                    'detalles' => ['normal_menor_2a' => $nutrNormal, 'total_menor_2a' => $nutrTotal],
+                    'fuente' => 'REM-P02 (Sección A, H36:Y36 / H12:Y12)',
+                    'detalles' => [
+                        'normal_menor_2a' => $nutrNormal,
+                        'total_menor_2a' => $nutrTotal,
+                    ],
                 ];
             }
         }
@@ -554,12 +931,22 @@ class RemReaderService
         // MS-01: DSM
         if (isset($indicadores['MS-01'])) {
             $data = $extracted['MS-01'] ?? null;
-            if ($data === null || $data['denominador'] === null) {
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'MS-01',
+                    'input_key' => 'numerador_ms_01',
+                    'title' => 'Meta I: Desarrollo Psicomotor (Numerador)',
+                    'text' => "Ingrese el N° de niños(as) de 12 a 23 meses diagnosticados con riesgo recuperados ({$año}):",
+                    'default_value' => null,
+                ];
+            }
+
+            if ($data === null || $data['denominador'] === null || $data['denominador'] <= 0) {
                 $pending[] = [
                     'meta_codigo' => 'MS-01',
                     'input_key' => 'dsm_denominador_riesgo',
-                    'title' => 'Meta I: Desarrollo Psicomotor (12 a 23 meses)',
-                    'text' => "Ingrese el N° de niños(as) de 12 a 23 meses diagnosticados con riesgo o retraso del DSM en 1ª evaluación ({$año}):",
+                    'title' => 'Meta I: Desarrollo Psicomotor (Denominador)',
+                    'text' => "Ingrese el N° de niños(as) de 12 a 23 meses diagnosticados con riesgo en 1ª evaluación ({$año}):",
                     'default_value' => null,
                 ];
             }
@@ -568,12 +955,12 @@ class RemReaderService
         // MS-02: PAP
         if (isset($indicadores['MS-02'])) {
             $data = $extracted['MS-02'] ?? null;
-            if ($data === null || $data['numerador'] === null) {
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
                 $pending[] = [
                     'meta_codigo' => 'MS-02',
                     'input_key' => 'numerador_pap_vigente',
                     'title' => 'Meta II: Cáncer Cuello Uterino (Numerador)',
-                    'text' => "Ingrese el N° de mujeres de 25 a 64 años inscritas con PAP o VPH vigente ({$año}):",
+                    'text' => "Ingrese el N° de personas de 25 a 64 años inscritas con PAP o VPH vigente ({$año}):",
                     'default_value' => null,
                 ];
             }
@@ -590,11 +977,22 @@ class RemReaderService
 
         // MS-03: Odontología
         if (isset($indicadores['MS-03'])) {
+            $data = $extracted['MS-03'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'MS-03',
+                    'input_key' => 'numerador_ms_03',
+                    'title' => 'Meta III: Salud Bucal (Pauta CERO Numerador)',
+                    'text' => "Ingrese el N° de niños(as) de 0 a 9 años en control con pauta CERO aplicada ({$año}):",
+                    'default_value' => null,
+                ];
+            }
+
             $defFonasa09 = $pobTotal > 0 ? (float) round($pobTotal * 0.12) : null;
             $pending[] = [
                 'meta_codigo' => 'MS-03',
                 'input_key' => 'poblacion_fonasa_0_9',
-                'title' => 'Meta III: Salud Bucal (Pauta CERO)',
+                'title' => 'Meta III: Salud Bucal (Pauta CERO Denominador)',
                 'text' => "Ingrese la población de 0 a 9 años inscrita y validada por FONASA ({$año}):",
                 'default_value' => $defFonasa09,
             ];
@@ -603,7 +1001,7 @@ class RemReaderService
         // MS-04: DM2 Compensada
         if (isset($indicadores['MS-04'])) {
             $data = $extracted['MS-04'] ?? null;
-            if ($data === null || $data['numerador'] === null) {
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
                 $pending[] = [
                     'meta_codigo' => 'MS-04',
                     'input_key' => 'numerador_dm2_compensada',
@@ -626,12 +1024,12 @@ class RemReaderService
         // MS-05: HTA Compensada
         if (isset($indicadores['MS-05'])) {
             $data = $extracted['MS-05'] ?? null;
-            if ($data === null || $data['numerador'] === null) {
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
                 $pending[] = [
                     'meta_codigo' => 'MS-05',
                     'input_key' => 'numerador_hta_compensada',
                     'title' => 'Meta V: Hipertensión Arterial (Numerador)',
-                    'text' => "Ingrese el N° de personas de 15 años y más con HTA con PA bajo meta (<140/90) ({$año}):",
+                    'text' => "Ingrese el N° de personas de 15 años y más con HTA con PA bajo meta (<140/90 o <150/90) ({$año}):",
                     'default_value' => null,
                 ];
             }
@@ -649,7 +1047,7 @@ class RemReaderService
         // MS-06: LME 6° mes
         if (isset($indicadores['MS-06'])) {
             $data = $extracted['MS-06'] ?? null;
-            if ($data === null || $data['numerador'] === null) {
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
                 $pending[] = [
                     'meta_codigo' => 'MS-06',
                     'input_key' => 'numerador_lme_6m',
@@ -659,12 +1057,37 @@ class RemReaderService
                 ];
             }
 
+            if ($data === null || $data['denominador'] === null || $data['denominador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'MS-06',
+                    'input_key' => 'denominador_control_6m',
+                    'title' => 'Meta VI: Lactancia Materna Exclusiva (Denominador)',
+                    'text' => "Ingrese el N° total de lactantes con control de salud al 6° mes ({$año}):",
+                    'default_value' => null,
+                ];
+            }
+        }
+
+        // MS-07: Asma y EPOC
+        if (isset($indicadores['MS-07'])) {
+            $data = $extracted['MS-07'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'MS-07',
+                    'input_key' => 'numerador_asma_epoc',
+                    'title' => 'Meta VII: Asma y EPOC (Numerador)',
+                    'text' => "Ingrese el N° de personas con Asma (controladas) y EPOC (adecuadas) ({$año}):",
+                    'default_value' => null,
+                ];
+            }
+
+            $defResp = $pobTotal > 0 ? (float) round(($pobTotal * 0.40 * 0.117) + ($pobTotal * 0.90 * 0.10)) : null;
             $pending[] = [
-                'meta_codigo' => 'MS-06',
-                'input_key' => 'denominador_control_6m',
-                'title' => 'Meta VI: Lactancia Materna Exclusiva (Denominador)',
-                'text' => "Ingrese el N° total de lactantes con control de salud al 6° mes ({$año}):",
-                'default_value' => null,
+                'meta_codigo' => 'MS-07',
+                'input_key' => 'poblacion_estimada_asma_epoc',
+                'title' => 'Meta VII: Asma y EPOC (Denominador Prevalencia)',
+                'text' => "Ingrese la población esperada con Asma y EPOC según prevalencia ({$año}):",
+                'default_value' => $defResp,
             ];
         }
 
@@ -728,40 +1151,76 @@ class RemReaderService
 
         // IAAPS-04: Derivación al Nivel Secundario (SIC)
         if (isset($indicadores['IAAPS-04'])) {
-            $pending[] = [
-                'meta_codigo' => 'IAAPS-04',
-                'input_key' => 'iaaps_04_sic',
-                'title' => 'IAAPS META 4: Derivación al Nivel Secundario',
-                'text' => 'Ingrese el N° de solicitudes de interconsulta (SIC) médicas generadas en APS:',
-                'default_value' => 120.0,
-            ];
+            $data = $extracted['IAAPS-04'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-04',
+                    'input_key' => 'iaaps_04_sic',
+                    'title' => 'IAAPS META 4: Derivación al Nivel Secundario',
+                    'text' => 'Ingrese el N° de solicitudes de interconsulta (SIC) médicas generadas en APS:',
+                    'default_value' => 120.0,
+                ];
+            }
+            if ($data === null || $data['denominador'] === null || $data['denominador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-04',
+                    'input_key' => 'iaaps_04_total_consultas',
+                    'title' => 'IAAPS META 4: Total Consultas y Atenciones APS',
+                    'text' => 'Total de consultas y atenciones médicas realizadas en APS:',
+                    'default_value' => 1296.0,
+                ];
+            }
         }
 
         // IAAPS-05: Visitas Domiciliarias Integrales (VDI)
         if (isset($indicadores['IAAPS-05'])) {
-            $pending[] = [
-                'meta_codigo' => 'IAAPS-05',
-                'input_key' => 'iaaps_05_vdi',
-                'title' => 'IAAPS META 5: Tasa de Visita Domiciliaria Integral',
-                'text' => 'Ingrese el N° de Visitas Domiciliarias Integrales (VDI) realizadas:',
-                'default_value' => 150.0,
-            ];
+            $data = $extracted['IAAPS-05'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-05',
+                    'input_key' => 'iaaps_05_vdi',
+                    'title' => 'IAAPS META 5: Tasa de Visita Domiciliaria Integral',
+                    'text' => 'Ingrese el N° de Visitas Domiciliarias Integrales (VDI) realizadas:',
+                    'default_value' => 150.0,
+                ];
+            }
         }
 
         // IAAPS-06.1A: EMP Mujeres (Denominador)
         if (isset($indicadores['IAAPS-06.1A'])) {
-            $defMujeres = $pobTotal > 0 ? (float) round($pobTotal * 0.31) : null;
+            $data = $extracted['IAAPS-06.1A'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-06.1A',
+                    'input_key' => 'iaaps_06_1a_num',
+                    'title' => 'IAAPS META 6.1.A: EMP Mujeres (Numerador)',
+                    'text' => 'N° de EMP realizado en mujeres de 20 a 64 años:',
+                    'default_value' => 100.0,
+                ];
+            }
+            $gestantes = (float) ($data['detalles']['gestantes_p1'] ?? 0);
+            $defMujeres = $pobTotal > 0 ? (float) max(1, round($pobTotal * 0.31) - $gestantes) : null;
             $pending[] = [
                 'meta_codigo' => 'IAAPS-06.1A',
                 'input_key' => 'iaaps_06_1a_den',
                 'title' => 'IAAPS META 6.1.A: EMP Mujeres (Denominador)',
-                'text' => 'Población mujeres 20-64 años inscrita validada (menos embarazadas 20-54 años):',
+                'text' => 'Población mujeres 20-64 años inscrita validada (menos gestantes):',
                 'default_value' => $defMujeres,
             ];
         }
 
         // IAAPS-06.1B: EMP Hombres (Denominador)
         if (isset($indicadores['IAAPS-06.1B'])) {
+            $data = $extracted['IAAPS-06.1B'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-06.1B',
+                    'input_key' => 'iaaps_06_1b_num',
+                    'title' => 'IAAPS META 6.1.B: EMP Hombres (Numerador)',
+                    'text' => 'N° de EMP realizado en hombres de 20 a 64 años:',
+                    'default_value' => 100.0,
+                ];
+            }
             $defHombres = $pobTotal > 0 ? (float) round($pobTotal * 0.29) : null;
             $pending[] = [
                 'meta_codigo' => 'IAAPS-06.1B',
@@ -774,14 +1233,17 @@ class RemReaderService
 
         // IAAPS-06.2: EMPAM 65+ años
         if (isset($indicadores['IAAPS-06.2'])) {
+            $data = $extracted['IAAPS-06.2'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-06.2',
+                    'input_key' => 'iaaps_06_2_num',
+                    'title' => 'IAAPS META 6.2: Examen de Medicina Preventiva Adulto Mayor (EMPAM)',
+                    'text' => 'N° de adultos de 65 y más años con EMP realizado:',
+                    'default_value' => 500.0,
+                ];
+            }
             $def65 = $pobTotal > 0 ? (float) round($pobTotal * 0.14) : null;
-            $pending[] = [
-                'meta_codigo' => 'IAAPS-06.2',
-                'input_key' => 'iaaps_06_2_num',
-                'title' => 'IAAPS META 6.2: Examen de Medicina Preventiva Adulto Mayor (EMPAM)',
-                'text' => 'N° de adultos de 65 y más años con EMP realizado:',
-                'default_value' => 500.0,
-            ];
             $pending[] = [
                 'meta_codigo' => 'IAAPS-06.2',
                 'input_key' => 'iaaps_06_2_den',
@@ -791,28 +1253,43 @@ class RemReaderService
             ];
         }
 
-        // IAAPS-07: DSM bajo control (Denominador)
+        // IAAPS-07: DSM bajo control
         if (isset($indicadores['IAAPS-07'])) {
-            $defNinos1223 = $pobTotal > 0 ? (float) round($pobTotal * 0.02) : null;
-            $pending[] = [
-                'meta_codigo' => 'IAAPS-07',
-                'input_key' => 'iaaps_07_den',
-                'title' => 'IAAPS META 7: Niños(as) 12 a 23 meses bajo control',
-                'text' => 'N° total de niños y niñas de 12 a 23 meses bajo control:',
-                'default_value' => $defNinos1223,
-            ];
+            $data = $extracted['IAAPS-07'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-07',
+                    'input_key' => 'iaaps_07_num',
+                    'title' => 'IAAPS META 7: Niños(as) 12 a 23 meses evaluados DSM',
+                    'text' => 'N° de niños(as) de 12 a 23 meses con evaluación DSM realizada:',
+                    'default_value' => null,
+                ];
+            }
+            if ($data === null || $data['denominador'] === null || $data['denominador'] <= 0) {
+                $defNinos1223 = $pobTotal > 0 ? (float) round($pobTotal * 0.02) : null;
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-07',
+                    'input_key' => 'iaaps_07_den',
+                    'title' => 'IAAPS META 7: Niños(as) 12 a 23 meses bajo control',
+                    'text' => 'N° total de niños y niñas de 12 a 23 meses bajo control:',
+                    'default_value' => $defNinos1223,
+                ];
+            }
         }
 
         // IAAPS-08: Control integral adolescentes 10 a 19 años
         if (isset($indicadores['IAAPS-08'])) {
+            $data = $extracted['IAAPS-08'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-08',
+                    'input_key' => 'iaaps_08_num',
+                    'title' => 'IAAPS META 8: Control de Salud Integral Adolescente',
+                    'text' => 'N° de controles de salud integral realizados a adolescentes de 10 a 19 años:',
+                    'default_value' => 300.0,
+                ];
+            }
             $defAdol1019 = $pobTotal > 0 ? (float) round($pobTotal * 0.13) : null;
-            $pending[] = [
-                'meta_codigo' => 'IAAPS-08',
-                'input_key' => 'iaaps_08_num',
-                'title' => 'IAAPS META 8: Control de Salud Integral Adolescente',
-                'text' => 'N° de controles de salud integral realizados a adolescentes de 10 a 19 años:',
-                'default_value' => 300.0,
-            ];
             $pending[] = [
                 'meta_codigo' => 'IAAPS-08',
                 'input_key' => 'iaaps_08_den',
@@ -820,6 +1297,72 @@ class RemReaderService
                 'text' => 'Población total de adolescentes de 10 a 19 años inscrita validada:',
                 'default_value' => $defAdol1019,
             ];
+        }
+
+        // IAAPS-09.1, 09.2, 09.3: Salud mental
+        if (isset($indicadores['IAAPS-09.1'])) {
+            $data = $extracted['IAAPS-09.1'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-09.1',
+                    'input_key' => 'iaaps_09_1_num',
+                    'title' => 'IAAPS META 9.1: Población Bajo Control en Salud Mental',
+                    'text' => 'N° de personas bajo control en salud mental:',
+                    'default_value' => round($pobTotal * 0.05),
+                ];
+            }
+            $defPrevalenciaSM = $pobTotal > 0 ? (float) round($pobTotal * 0.22) : null;
+            $pending[] = [
+                'meta_codigo' => 'IAAPS-09.1',
+                'input_key' => 'iaaps_09_1_den',
+                'title' => 'IAAPS META 9.1: Prevalencia Referencial Salud Mental (22%)',
+                'text' => 'Población estimada según prevalencia (22% población total):',
+                'default_value' => $defPrevalenciaSM,
+            ];
+        }
+
+        if (isset($indicadores['IAAPS-09.2'])) {
+            $data = $extracted['IAAPS-09.2'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-09.2',
+                    'input_key' => 'iaaps_09_2_num',
+                    'title' => 'IAAPS META 9.2: Controles de Salud Mental',
+                    'text' => 'N° total de controles integrales de salud mental realizados:',
+                    'default_value' => 200.0,
+                ];
+            }
+            if ($data === null || $data['denominador'] === null || $data['denominador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-09.2',
+                    'input_key' => 'iaaps_09_2_den',
+                    'title' => 'IAAPS META 9.2: Población Bajo Control en Salud Mental',
+                    'text' => 'Población bajo control en salud mental:',
+                    'default_value' => 100.0,
+                ];
+            }
+        }
+
+        if (isset($indicadores['IAAPS-09.3'])) {
+            $data = $extracted['IAAPS-09.3'] ?? null;
+            if ($data === null || $data['numerador'] === null) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-09.3',
+                    'input_key' => 'iaaps_09_3_num',
+                    'title' => 'IAAPS META 9.3: Altas Clínicas de Salud Mental',
+                    'text' => 'N° de personas egresadas por alta clínica en salud mental:',
+                    'default_value' => 10.0,
+                ];
+            }
+            if ($data === null || $data['denominador'] === null || $data['denominador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-09.3',
+                    'input_key' => 'iaaps_09_3_den',
+                    'title' => 'IAAPS META 9.3: Población Bajo Control en Salud Mental',
+                    'text' => 'Población bajo control en salud mental:',
+                    'default_value' => 100.0,
+                ];
+            }
         }
 
         // IAAPS-10: Garantías GES en APS
@@ -861,14 +1404,17 @@ class RemReaderService
 
         // IAAPS-13: Regulación fertilidad adolescentes 15-19 años
         if (isset($indicadores['IAAPS-13'])) {
+            $data = $extracted['IAAPS-13'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-13',
+                    'input_key' => 'iaaps_13_num',
+                    'title' => 'IAAPS META 13: Regulación Fertilidad Adolescente',
+                    'text' => 'N° de adolescentes de 15 a 19 años con método de regulación de fertilidad:',
+                    'default_value' => null,
+                ];
+            }
             $defAdol1519 = $pobTotal > 0 ? (float) round($pobTotal * 0.07) : null;
-            $pending[] = [
-                'meta_codigo' => 'IAAPS-13',
-                'input_key' => 'iaaps_13_num',
-                'title' => 'IAAPS META 13: Regulación Fertilidad Adolescente',
-                'text' => 'N° de adolescentes de 15 a 19 años con método de regulación de fertilidad:',
-                'default_value' => null,
-            ];
             $pending[] = [
                 'meta_codigo' => 'IAAPS-13',
                 'input_key' => 'iaaps_13_den',
@@ -880,14 +1426,17 @@ class RemReaderService
 
         // IAAPS-16: Libre de caries <3 años
         if (isset($indicadores['IAAPS-16'])) {
+            $data = $extracted['IAAPS-16'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => 'IAAPS-16',
+                    'input_key' => 'iaaps_16_num',
+                    'title' => 'IAAPS META 16: Libre de Caries Menores de 3 años (CEOD = 0)',
+                    'text' => 'N° de niños y niñas menores de 3 años con registro CEOD = 0:',
+                    'default_value' => null,
+                ];
+            }
             $defNinos03 = $pobTotal > 0 ? (float) round($pobTotal * 0.035) : null;
-            $pending[] = [
-                'meta_codigo' => 'IAAPS-16',
-                'input_key' => 'iaaps_16_num',
-                'title' => 'IAAPS META 16: Libre de Caries Menores de 3 años (CEOD = 0)',
-                'text' => 'N° de niños y niñas menores de 3 años con registro CEOD = 0:',
-                'default_value' => null,
-            ];
             $pending[] = [
                 'meta_codigo' => 'IAAPS-16',
                 'input_key' => 'iaaps_16_den',

@@ -263,7 +263,7 @@ class ImportacionController extends Controller
 
                 case 'MS-06':
                     $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_lme_6m'] ?? 0));
-                    $denominador = (float) ($userInputs['denominador_control_6m'] ?? 0);
+                    $denominador = (float) ($metaExtracted['denominador'] ?? ($userInputs['denominador_control_6m'] ?? 0));
                     break;
 
                 case 'MS-07':
@@ -301,20 +301,22 @@ class ImportacionController extends Controller
                     break;
 
                 case 'IAAPS-04':
-                    $numerador = (float) ($userInputs['iaaps_04_sic'] ?? 0);
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['iaaps_04_sic'] ?? 0));
                     $denominador = (float) ($metaExtracted['denominador'] ?? ($userInputs['iaaps_04_total_consultas'] ?? 1296));
                     $tipoCalculo = 'Inverso';
                     break;
 
                 case 'IAAPS-05':
-                    $numerador = (float) ($userInputs['iaaps_05_vdi'] ?? 0);
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['iaaps_05_vdi'] ?? 0));
                     $denominador = (float) ($pobTotal > 0 ? round($pobTotal / 3.3) : ($userInputs['iaaps_05_familias'] ?? 1000));
                     $tipoCalculo = 'Tasa';
                     break;
 
                 case 'IAAPS-06.1A':
                     $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['iaaps_06_1a_num'] ?? 0));
-                    $denominador = (float) ($userInputs['iaaps_06_1a_den'] ?? round($pobTotal * 0.31));
+                    $gestantes = (float) ($metaExtracted['detalles']['gestantes_p1'] ?? 0);
+                    $defDen = $pobTotal > 0 ? max(1, round($pobTotal * 0.31) - $gestantes) : 0;
+                    $denominador = (float) ($userInputs['iaaps_06_1a_den'] ?? $defDen);
                     break;
 
                 case 'IAAPS-06.1B':
@@ -323,34 +325,34 @@ class ImportacionController extends Controller
                     break;
 
                 case 'IAAPS-06.2':
-                    $numerador = (float) ($userInputs['iaaps_06_2_num'] ?? 0);
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['iaaps_06_2_num'] ?? 0));
                     $denominador = (float) ($userInputs['iaaps_06_2_den'] ?? round($pobTotal * 0.14));
                     break;
 
                 case 'IAAPS-07':
                     $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['iaaps_07_num'] ?? 0));
-                    $denominador = (float) ($userInputs['iaaps_07_den'] ?? round($pobTotal * 0.02));
+                    $denominador = (float) ($metaExtracted['denominador'] ?? ($userInputs['iaaps_07_den'] ?? round($pobTotal * 0.02)));
                     break;
 
                 case 'IAAPS-08':
-                    $numerador = (float) ($userInputs['iaaps_08_num'] ?? 0);
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['iaaps_08_num'] ?? 0));
                     $denominador = (float) ($userInputs['iaaps_08_den'] ?? round($pobTotal * 0.13));
                     break;
 
                 case 'IAAPS-09.1':
-                    $numerador = (float) ($userInputs['iaaps_09_1_num'] ?? 0);
-                    $denominador = (float) ($userInputs['iaaps_09_1_den'] ?? round($pobTotal * 0.05));
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['iaaps_09_1_num'] ?? 0));
+                    $denominador = (float) ($userInputs['iaaps_09_1_den'] ?? round($pobTotal * 0.22));
                     break;
 
                 case 'IAAPS-09.2':
-                    $numerador = (float) ($userInputs['iaaps_09_2_num'] ?? 0);
-                    $denominador = (float) ($userInputs['iaaps_09_2_den'] ?? 100);
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['iaaps_09_2_num'] ?? 0));
+                    $denominador = (float) ($metaExtracted['denominador'] ?? ($userInputs['iaaps_09_2_den'] ?? 100));
                     $tipoCalculo = 'Tasa';
                     break;
 
                 case 'IAAPS-09.3':
-                    $numerador = (float) ($userInputs['iaaps_09_3_num'] ?? 0);
-                    $denominador = (float) ($userInputs['iaaps_09_3_den'] ?? 100);
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['iaaps_09_3_num'] ?? 0));
+                    $denominador = (float) ($metaExtracted['denominador'] ?? ($userInputs['iaaps_09_3_den'] ?? 100));
                     break;
 
                 case 'IAAPS-10':
@@ -369,7 +371,7 @@ class ImportacionController extends Controller
                     break;
 
                 case 'IAAPS-13':
-                    $numerador = (float) ($userInputs['iaaps_13_num'] ?? 0);
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['iaaps_13_num'] ?? 0));
                     $denominador = (float) ($userInputs['iaaps_13_den'] ?? round($pobTotal * 0.07));
                     break;
 
@@ -384,7 +386,7 @@ class ImportacionController extends Controller
                     break;
 
                 case 'IAAPS-16':
-                    $numerador = (float) ($userInputs['iaaps_16_num'] ?? 0);
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['iaaps_16_num'] ?? 0));
                     $denominador = (float) ($userInputs['iaaps_16_den'] ?? round($pobTotal * 0.035));
                     break;
 

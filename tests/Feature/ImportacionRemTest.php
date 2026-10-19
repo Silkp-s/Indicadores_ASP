@@ -156,9 +156,11 @@ test('el servicio calcula correctamente el porcentaje y estado sin división por
 });
 
 test('previsualizar con un archivo real o temporal detecta metadatos y solicita denominadores faltantes', function () {
-    $realPath = 'D:/DAS/jkm/119308A06.xlsm';
+    $realPath = file_exists('D:/DAS/documentos/119308A06.xlsm')
+        ? 'D:/DAS/documentos/119308A06.xlsm'
+        : (file_exists('D:/DAS/jkm/119308A06.xlsm') ? 'D:/DAS/jkm/119308A06.xlsm' : null);
 
-    if (! file_exists($realPath)) {
+    if ($realPath === null) {
         $this->markTestSkipped('Archivo real 119308A06.xlsm no disponible para este entorno');
     }
 
@@ -197,8 +199,11 @@ test('previsualizar responde establishment_not_found si el archivo tiene un esta
     // Si eliminamos el establecimiento, debe retornar establishment_not_found
     $this->establecimiento->delete();
 
-    $realPath = 'D:/DAS/jkm/119308A06.xlsm';
-    if (! file_exists($realPath)) {
+    $realPath = file_exists('D:/DAS/documentos/119308A06.xlsm')
+        ? 'D:/DAS/documentos/119308A06.xlsm'
+        : (file_exists('D:/DAS/jkm/119308A06.xlsm') ? 'D:/DAS/jkm/119308A06.xlsm' : null);
+
+    if ($realPath === null) {
         $this->markTestSkipped('Archivo real 119308A06.xlsm no disponible para este entorno');
     }
 
@@ -318,8 +323,11 @@ test('el servicio calcula correctamente cumplimiento para tasas y fórmulas inve
 });
 
 test('previsualizar extrae indicadores IAAPS y genera preguntas de denominadores pendientes', function () {
-    $realPath = 'D:/DAS/jkm/119308A06.xlsm';
-    if (! file_exists($realPath)) {
+    $realPath = file_exists('D:/DAS/documentos/119308A06.xlsm')
+        ? 'D:/DAS/documentos/119308A06.xlsm'
+        : (file_exists('D:/DAS/jkm/119308A06.xlsm') ? 'D:/DAS/jkm/119308A06.xlsm' : null);
+
+    if ($realPath === null) {
         $this->markTestSkipped('Archivo real 119308A06.xlsm no disponible para este entorno');
     }
 
@@ -345,21 +353,35 @@ test('previsualizar extrae indicadores IAAPS y genera preguntas de denominadores
         ->and($data['extracted_metas']['IAAPS-12']['numerador'])->toEqual(9)
         ->and($data['extracted_metas']['IAAPS-12']['denominador'])->toEqual(9);
 
-    // Validar extracción de IAAPS-03 (Consultas morbilidad médica hoja A04: B12 = 1296)
+    // Validar extracción de IAAPS-03 (Consultas morbilidad médica A04:B12(1296) + A08:B41(45) + A23:B58(10) = 1351)
     expect($data['extracted_metas'])->toHaveKey('IAAPS-03')
-        ->and($data['extracted_metas']['IAAPS-03']['numerador'])->toEqual(1296)
+        ->and($data['extracted_metas']['IAAPS-03']['numerador'])->toEqual(1351)
         ->and($data['extracted_metas']['IAAPS-03']['denominador'])->toEqual(35000);
 
-    // Validar extracción de IAAPS-06.1A (EMP mujeres hoja A02: D11 = 133) y 06.1B (EMP hombres: C11 = 100)
+    // Validar extracción de IAAPS-06.1A (57) y 06.1B (40) en A02 Sección B rangos 20-64 años
     expect($data['extracted_metas'])->toHaveKey('IAAPS-06.1A')
-        ->and($data['extracted_metas']['IAAPS-06.1A']['numerador'])->toEqual(133)
+        ->and($data['extracted_metas']['IAAPS-06.1A']['numerador'])->toEqual(57)
         ->and($data['extracted_metas'])->toHaveKey('IAAPS-06.1B')
-        ->and($data['extracted_metas']['IAAPS-06.1B']['numerador'])->toEqual(100);
+        ->and($data['extracted_metas']['IAAPS-06.1B']['numerador'])->toEqual(40);
 
-    // Validar que se generaron pending_inputs para IAAPS
-    $metasEnPending = collect($data['pending_inputs'])->pluck('meta_codigo')->unique()->toArray();
-    expect($metasEnPending)->toContain('IAAPS-04')
-        ->and($metasEnPending)->toContain('IAAPS-05');
+    // Validar extracción de IAAPS-04, IAAPS-05, MS-01, MS-03, MS-06
+    expect($data['extracted_metas'])->toHaveKey('IAAPS-04')
+        ->and($data['extracted_metas']['IAAPS-04']['numerador'])->toEqual(105)
+        ->and($data['extracted_metas']['IAAPS-04']['denominador'])->toEqual(1559);
+
+    expect($data['extracted_metas'])->toHaveKey('IAAPS-05')
+        ->and($data['extracted_metas']['IAAPS-05']['numerador'])->toEqual(230);
+
+    expect($data['extracted_metas'])->toHaveKey('MS-01')
+        ->and($data['extracted_metas']['MS-01']['numerador'])->toEqual(3)
+        ->and($data['extracted_metas']['MS-01']['denominador'])->toEqual(1);
+
+    expect($data['extracted_metas'])->toHaveKey('MS-03')
+        ->and($data['extracted_metas']['MS-03']['numerador'])->toEqual(65);
+
+    expect($data['extracted_metas'])->toHaveKey('MS-06')
+        ->and($data['extracted_metas']['MS-06']['numerador'])->toEqual(2)
+        ->and($data['extracted_metas']['MS-06']['denominador'])->toEqual(3);
 });
 
 test('guardar persiste mediciones de Metas Sanitarias e IAAPS 2025 simultáneamente', function () {
@@ -434,4 +456,60 @@ test('guardar persiste mediciones de Metas Sanitarias e IAAPS 2025 simultáneame
         'porcentaje_cumplimiento' => 5.00,
         'status' => 'Cumpliendo',
     ]);
+});
+
+test('previsualizar extrae indicadores de Serie P con mapeo exacto de celdas', function () {
+    $realPath = file_exists('D:/DAS/documentos/119308P06.xlsm')
+        ? 'D:/DAS/documentos/119308P06.xlsm'
+        : (file_exists('D:/DAS/jkm/119308P06.xlsm') ? 'D:/DAS/jkm/119308P06.xlsm' : null);
+
+    if ($realPath === null) {
+        $this->markTestSkipped('Archivo real 119308P06.xlsm no disponible para este entorno');
+    }
+
+    $uploadedFile = new UploadedFile(
+        $realPath,
+        '119308P06.xlsm',
+        'application/vnd.ms-excel.sheet.macroEnabled.12',
+        null,
+        true
+    );
+
+    $response = $this->actingAs($this->user)
+        ->post(route('importacion.previsualizar'), [
+            'archivo' => $uploadedFile,
+            'tipo_indicadores' => 'todas',
+        ]);
+
+    $response->assertOk();
+    $data = $response->json();
+
+    // MS-02: P12:B12..B19 = 2957
+    expect($data['extracted_metas'])->toHaveKey('MS-02')
+        ->and($data['extracted_metas']['MS-02']['numerador'])->toEqual(2957);
+
+    // MS-04: P4:C31+C32 = 489
+    expect($data['extracted_metas'])->toHaveKey('MS-04')
+        ->and($data['extracted_metas']['MS-04']['numerador'])->toEqual(489);
+
+    // MS-05: P4:C29+C30 = 1170
+    expect($data['extracted_metas'])->toHaveKey('MS-05')
+        ->and($data['extracted_metas']['MS-05']['numerador'])->toEqual(1170);
+
+    // MS-07: P3 Asma (H59..AM59) + EPOC (C63) = 5
+    expect($data['extracted_metas'])->toHaveKey('MS-07')
+        ->and($data['extracted_metas']['MS-07']['numerador'])->toEqual(5);
+
+    // IAAPS-14: P4:C17 = 1271
+    expect($data['extracted_metas'])->toHaveKey('IAAPS-14')
+        ->and($data['extracted_metas']['IAAPS-14']['numerador'])->toEqual(1271);
+
+    // IAAPS-15: P4:C16 = 2112
+    expect($data['extracted_metas'])->toHaveKey('IAAPS-15')
+        ->and($data['extracted_metas']['IAAPS-15']['numerador'])->toEqual(2112);
+
+    // IAAPS-17: P2 Nutrición Normal (H36..Y36 = 91), Total (H12..Y12 = 182)
+    expect($data['extracted_metas'])->toHaveKey('IAAPS-17')
+        ->and($data['extracted_metas']['IAAPS-17']['numerador'])->toEqual(91)
+        ->and($data['extracted_metas']['IAAPS-17']['denominador'])->toEqual(182);
 });

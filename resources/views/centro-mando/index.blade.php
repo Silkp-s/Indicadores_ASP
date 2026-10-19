@@ -208,14 +208,14 @@
             <div class="mt-3 flex items-center justify-between text-sm">
                 <div class="flex items-center gap-1.5">
                     <span class="h-2.5 w-2.5 rounded-full bg-accent-500"></span>
-                    <span class="text-xs text-[#475569]">Metas Sanitarias:</span>
+                    <span class="text-xs text-[#475569]">Metas Ley 19.813:</span>
                 </div>
                 <span class="font-bold text-brand-950">{{ $metasCount }}</span>
             </div>
             <div class="mt-1.5 flex items-center justify-between text-sm">
                 <div class="flex items-center gap-1.5">
                     <span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
-                    <span class="text-xs text-[#475569]">IAAPS:</span>
+                    <span class="text-xs text-[#475569]">IAAPS 2025:</span>
                 </div>
                 <span class="font-bold text-brand-950">{{ $iaapsCount }}</span>
             </div>

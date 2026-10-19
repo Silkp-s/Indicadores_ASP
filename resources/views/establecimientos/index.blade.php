@@ -8,6 +8,90 @@
 @section('content')
 <div class="space-y-6">
 
+    {{-- Barra de Búsqueda, Filtros y Botón de Nuevo Establecimiento --}}
+    <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
+        
+        <form method="GET" action="{{ route('establecimientos.index') }}" data-filtros class="flex flex-1 flex-wrap items-center gap-3">
+            
+            {{-- Búsqueda libre --}}
+            <div class="relative w-full flex-1 sm:min-w-[240px]">
+                <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                    type="text"
+                    name="q"
+                    value="{{ $filtros['q'] }}"
+                    placeholder="Buscar por nombre o código DEIS..."
+                    class="w-full rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] py-2 pl-10 pr-3 text-sm text-brand-950 placeholder:text-[#94A3B8] focus:border-accent-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                >
+            </div>
+
+            {{-- Filtro por Tipo --}}
+            <div class="w-full sm:w-auto min-w-0 sm:min-w-[160px]">
+                <select
+                    name="tipo"
+                    onchange="this.form.submit()"
+                    class="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-brand-950 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                >
+                    <option value="">Tipo: Todos</option>
+                    @foreach ($tipos as $tipo)
+                        <option value="{{ $tipo }}" @selected($filtros['tipo'] === $tipo)>{{ $tipo }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- Filtro por Estado --}}
+            <div class="w-full sm:w-auto min-w-0 sm:min-w-[150px]">
+                <select
+                    name="estado"
+                    onchange="this.form.submit()"
+                    class="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-brand-950 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                >
+                    <option value="todos" @selected($filtros['estado'] === 'todos')>Estado: Todos</option>
+                    <option value="activo" @selected($filtros['estado'] === 'activo')>Activos</option>
+                    <option value="inactivo" @selected($filtros['estado'] === 'inactivo')>Inactivos</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button
+                    type="submit"
+                    class="rounded-lg bg-brand-950 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-800 transition-colors"
+                >
+                    Filtrar
+                </button>
+                @if ($filtros['q'] || $filtros['tipo'] || $filtros['estado'] !== 'todos')
+                    <a
+                        href="{{ route('establecimientos.index') }}"
+                        class="rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                        title="Limpiar filtros"
+                    >
+                        Limpiar
+                    </a>
+                @endif
+            </div>
+        </form>
+
+        {{-- Botón para abrir modal de nuevo establecimiento --}}
+        <div class="w-full sm:w-auto shrink-0">
+            <button
+                type="button"
+                data-nuevo-establecimiento
+                class="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-accent-600 transition-colors"
+            >
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                <span>Nuevo establecimiento</span>
+            </button>
+        </div>
+
+    </div>
+
+
+
+
     {{-- Alerta de error (por ejemplo, al intentar eliminar con mediciones vinculadas) --}}
     @if ($errors->has('establecimiento'))
         <div class="flex items-start gap-3 rounded-xl border border-status-bad-fg/30 bg-status-bad-bg p-4 text-status-bad-fg shadow-xs">
@@ -97,86 +181,6 @@
 
     </div>
 
-    {{-- Barra de Búsqueda, Filtros y Botón de Nuevo Establecimiento --}}
-    <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
-        
-        <form method="GET" action="{{ route('establecimientos.index') }}" data-filtros class="flex flex-1 flex-wrap items-center gap-3">
-            
-            {{-- Búsqueda libre --}}
-            <div class="relative w-full flex-1 sm:min-w-[240px]">
-                <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                    type="text"
-                    name="q"
-                    value="{{ $filtros['q'] }}"
-                    placeholder="Buscar por nombre o código DEIS..."
-                    class="w-full rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] py-2 pl-10 pr-3 text-sm text-brand-950 placeholder:text-[#94A3B8] focus:border-accent-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20"
-                >
-            </div>
-
-            {{-- Filtro por Tipo --}}
-            <div class="w-full sm:w-auto min-w-0 sm:min-w-[160px]">
-                <select
-                    name="tipo"
-                    onchange="this.form.submit()"
-                    class="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-brand-950 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
-                >
-                    <option value="">Tipo: Todos</option>
-                    @foreach ($tipos as $tipo)
-                        <option value="{{ $tipo }}" @selected($filtros['tipo'] === $tipo)>{{ $tipo }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            {{-- Filtro por Estado --}}
-            <div class="w-full sm:w-auto min-w-0 sm:min-w-[150px]">
-                <select
-                    name="estado"
-                    onchange="this.form.submit()"
-                    class="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-brand-950 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
-                >
-                    <option value="todos" @selected($filtros['estado'] === 'todos')>Estado: Todos</option>
-                    <option value="activo" @selected($filtros['estado'] === 'activo')>Activos</option>
-                    <option value="inactivo" @selected($filtros['estado'] === 'inactivo')>Inactivos</option>
-                </select>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <button
-                    type="submit"
-                    class="rounded-lg bg-brand-950 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-800 transition-colors"
-                >
-                    Filtrar
-                </button>
-                @if ($filtros['q'] || $filtros['tipo'] || $filtros['estado'] !== 'todos')
-                    <a
-                        href="{{ route('establecimientos.index') }}"
-                        class="rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
-                        title="Limpiar filtros"
-                    >
-                        Limpiar
-                    </a>
-                @endif
-            </div>
-        </form>
-
-        {{-- Botón para abrir modal de nuevo establecimiento --}}
-        <div class="w-full sm:w-auto shrink-0">
-            <button
-                type="button"
-                data-nuevo-establecimiento
-                class="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-accent-600 transition-colors"
-            >
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                <span>Nuevo establecimiento</span>
-            </button>
-        </div>
-
-    </div>
 
     {{-- Tabla Principal de Establecimientos --}}
     <div class="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white shadow-xs">
