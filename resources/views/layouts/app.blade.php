@@ -41,6 +41,21 @@
                     </svg>
                 </button>
 
+                <form role="search" method="GET" action="{{ route('indicadores.index') }}" class="relative flex-1 min-w-0 max-w-xs sm:max-w-md lg:max-w-xl">
+                    <input type="hidden" name="estado" value="todos">
+                    <svg class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+                    </svg>
+                    <input
+                        type="search"
+                        name="q"
+                        value="{{ request()->routeIs('indicadores.index') && is_string(request()->query('q')) ? request()->query('q') : '' }}"
+                        maxlength="100"
+                        placeholder="Buscar indicador por código o nombre..."
+                        aria-label="Buscar indicador por código o nombre"
+                        class="w-full rounded-lg border border-[#D8DEE9] bg-[#F8FAFC] py-2 sm:py-2.5 pl-10 sm:pl-11 pr-3 sm:pr-4 text-xs sm:text-sm placeholder:text-[#94A3B8] focus:border-accent-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                    >
+                </form>
 
                 <div class="ml-auto flex items-center gap-2 sm:gap-4 lg:gap-5 shrink-0">
 

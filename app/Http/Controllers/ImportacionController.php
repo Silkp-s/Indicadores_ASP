@@ -50,51 +50,131 @@ class ImportacionController extends Controller
     }
 
     /**
-     * Procesa la planilla REM (.xlsm / .xlsx), detecta metadatos y extrae numeradores
+     * Procesa una o múltiples planillas REM (.xlsm / .xlsx), detecta metadatos y extrae numeradores
      * tanto de Metas Sanitarias (Ley 19.813) como de Indicadores IAAPS 2025.
      */
     public function previsualizar(Request $request): JsonResponse
     {
         $request->validate([
-            'archivo' => ['required', 'file', 'max:35840'], // hasta 35MB
+            'archivo' => ['nullable', 'file', 'max:35840'], // hasta 35MB
+            'archivos' => ['nullable', 'array'],
+            'archivos.*' => ['file', 'max:35840'],
             'establecimiento_id' => ['nullable', 'exists:establecimientos,id'],
             'tipo_indicadores' => ['nullable', 'string', 'in:todas,metas,iaaps'],
         ]);
 
-        $file = $request->file('archivo');
-        $originalName = $file->getClientOriginalName();
-        $filtroTipo = $request->input('tipo_indicadores', 'todas');
-        $tempToken = (string) Str::uuid();
-
-        // Guardar archivo temporalmente para su posterior confirmación
-        $tempPath = $file->storeAs('temp_rem', "{$tempToken}.".$file->getClientOriginalExtension());
-        $fullPath = storage_path("app/private/{$tempPath}");
-
-        if (! file_exists($fullPath)) {
-            $fullPath = storage_path("app/{$tempPath}");
+        $uploadedFiles = [];
+        if ($request->hasFile('archivos')) {
+            $uploadedFiles = $request->file('archivos');
+        } elseif ($request->hasFile('archivo')) {
+            $uploadedFiles = [$request->file('archivo')];
         }
 
-        try {
-            $spreadsheet = $this->remReader->loadRelevantSpreadsheet($fullPath);
-            $metadata = $this->remReader->detectMetadata($spreadsheet, $originalName);
+        if (empty($uploadedFiles)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Debe adjuntar al menos una planilla REM (.xlsm / .xlsx) para procesar.',
+            ], 422);
+        }
 
-            // 1. Vinculación con Establecimiento
-            $establecimiento = null;
-            if ($request->filled('establecimiento_id')) {
-                $establecimiento = Establecimiento::find($request->input('establecimiento_id'));
-            } else {
-                $establecimiento = $this->remReader->matchEstablecimiento(
-                    $metadata['codigo_deis'],
-                    $metadata['nombre_establecimiento']
-                );
+        $filtroTipo = $request->input('tipo_indicadores', 'todas');
+        $overrideEstablecimientoId = $request->input('establecimiento_id');
+
+        try {
+            $groups = [];
+            $unmatchedFiles = [];
+
+            foreach ($uploadedFiles as $file) {
+                $originalName = $file->getClientOriginalName();
+                $fileToken = (string) Str::uuid();
+
+                $tempPath = $file->storeAs('temp_rem', "{$fileToken}.".$file->getClientOriginalExtension());
+                $fullPath = storage_path("app/private/{$tempPath}");
+
+                if (! file_exists($fullPath)) {
+                    $fullPath = storage_path("app/{$tempPath}");
+                }
+
+                $spreadsheet = $this->remReader->loadRelevantSpreadsheet($fullPath);
+                $metadata = $this->remReader->detectMetadata($spreadsheet, $originalName);
+
+                // 1. Vinculación con Establecimiento
+                $establecimiento = null;
+                if ($overrideEstablecimientoId) {
+                    $establecimiento = Establecimiento::find($overrideEstablecimientoId);
+                } else {
+                    $establecimiento = $this->remReader->matchEstablecimiento(
+                        $metadata['codigo_deis'],
+                        $metadata['nombre_establecimiento']
+                    );
+                }
+
+                if ($establecimiento === null) {
+                    $unmatchedFiles[] = [
+                        'file_path' => $fullPath,
+                        'filename' => $originalName,
+                        'metadata' => $metadata,
+                        'file_token' => $fileToken,
+                    ];
+
+                    continue;
+                }
+
+                // 2. Extracción de numeradores y denominadores de la planilla
+                $extracted = $this->remReader->extractNumeradores($spreadsheet);
+
+                $año = (int) ($metadata['año'] ?? date('Y'));
+                $mes = (int) ($metadata['mes'] ?? date('n'));
+                $groupKey = "{$establecimiento->id}_{$año}_{$mes}";
+
+                if (! isset($groups[$groupKey])) {
+                    $groups[$groupKey] = [
+                        'establecimiento' => $establecimiento,
+                        'año' => $año,
+                        'mes' => $mes,
+                        'mes_nombre' => $metadata['mes_nombre'] ?? 'Periodo '.$mes,
+                        'series' => [],
+                        'archivos_procesados' => [],
+                        'extracted' => [],
+                    ];
+                }
+
+                if (! empty($metadata['serie'])) {
+                    $groups[$groupKey]['series'][] = $metadata['serie'];
+                }
+
+                $groups[$groupKey]['archivos_procesados'][] = [
+                    'nombre' => $originalName,
+                    'tamano' => $file->getSize(),
+                    'serie' => $metadata['serie'] ?? 'N/A',
+                    'indicadores_extraidos' => count($extracted),
+                ];
+
+                // Consolidar indicadores extraídos (sin perder datos de planillas complementarias como Serie A + Serie P)
+                foreach ($extracted as $cod => $info) {
+                    if (! isset($groups[$groupKey]['extracted'][$cod])) {
+                        $groups[$groupKey]['extracted'][$cod] = $info;
+                    } else {
+                        $currNum = (float) ($groups[$groupKey]['extracted'][$cod]['numerador'] ?? 0);
+                        $newNum = (float) ($info['numerador'] ?? 0);
+                        if ($newNum > 0 && $currNum == 0) {
+                            $groups[$groupKey]['extracted'][$cod] = $info;
+                        } elseif ($newNum > 0 && $currNum > 0) {
+                            $groups[$groupKey]['extracted'][$cod] = array_merge($groups[$groupKey]['extracted'][$cod], $info);
+                        }
+                    }
+                }
             }
 
-            // Excepción SweetAlert: Establecimiento no reconocido en BD
-            if ($establecimiento === null) {
+            // Si hay archivos no reconocidos y no hay grupos válidos:
+            if (empty($groups) && ! empty($unmatchedFiles)) {
+                $firstUnmatched = $unmatchedFiles[0];
+                $tempToken = $firstUnmatched['file_token'];
+
                 Cache::put("rem_pending_{$tempToken}", [
-                    'file_path' => $fullPath,
-                    'filename' => $originalName,
-                    'metadata' => $metadata,
+                    'file_path' => $firstUnmatched['file_path'],
+                    'filename' => $firstUnmatched['filename'],
+                    'metadata' => $firstUnmatched['metadata'],
                     'filtro_tipo' => $filtroTipo,
                 ], now()->addHours(2));
 
@@ -107,86 +187,129 @@ class ImportacionController extends Controller
                     'status' => 'establishment_not_found',
                     'temp_token' => $tempToken,
                     'detected' => [
-                        'codigo_deis' => $metadata['codigo_deis'] ?? 'No detectado',
-                        'nombre' => $metadata['nombre_establecimiento'] ?? 'No especificado',
-                        'mes' => $metadata['mes'],
-                        'mes_nombre' => $metadata['mes_nombre'] ?? 'No especificado',
-                        'año' => $metadata['año'],
-                        'serie' => $metadata['serie'] ?? 'A',
+                        'codigo_deis' => $firstUnmatched['metadata']['codigo_deis'] ?? 'No detectado',
+                        'nombre' => $firstUnmatched['metadata']['nombre_establecimiento'] ?? 'No especificado',
+                        'mes' => $firstUnmatched['metadata']['mes'],
+                        'mes_nombre' => $firstUnmatched['metadata']['mes_nombre'] ?? 'No especificado',
+                        'año' => $firstUnmatched['metadata']['año'],
+                        'serie' => $firstUnmatched['metadata']['serie'] ?? 'A',
                     ],
                     'establecimientos_disponibles' => $todosEstablecimientos,
                     'message' => 'El establecimiento detectado en la planilla no coincide exactamente con ninguno registrado en la base de datos.',
                 ]);
             }
 
-            // 2. Extracción de numeradores y denominadores de la matriz REM
-            $extracted = $this->remReader->extractNumeradores($spreadsheet);
-
-            // Asignar denominador automático de población inscrita si aplica (IAAPS-03 Tasa Morbilidad)
-            if (isset($extracted['IAAPS-03']) && $establecimiento->poblacion_inscrita > 0) {
-                $extracted['IAAPS-03']['denominador'] = (float) $establecimiento->poblacion_inscrita;
+            if (empty($groups)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No fue posible identificar ningún establecimiento en las planillas subidas.',
+                ], 422);
             }
 
-            // 3. Determinar denominadores o insumos pendientes (FONASA / ENS / IAAPS)
-            $pendingInputs = $this->remReader->determinePendingInputs(
-                $extracted,
-                $establecimiento,
-                $metadata['año'],
-                $filtroTipo
-            );
+            // Procesar cada grupo: asignar denominador de población y determinar inputs pendientes
+            foreach ($groups as $groupKey => &$group) {
+                $est = $group['establecimiento'];
 
-            // Almacenar extracción en caché
-            Cache::put("rem_pending_{$tempToken}", [
-                'file_path' => $fullPath,
-                'filename' => $originalName,
-                'metadata' => $metadata,
-                'establecimiento_id' => $establecimiento->id,
-                'extracted' => $extracted,
-                'filtro_tipo' => $filtroTipo,
-            ], now()->addHours(2));
+                // Asignar denominador automático de población inscrita si aplica (IAAPS-03 Tasa Morbilidad)
+                if (isset($group['extracted']['IAAPS-03']) && $est->poblacion_inscrita > 0) {
+                    $group['extracted']['IAAPS-03']['denominador'] = (float) $est->poblacion_inscrita;
+                }
 
-            $periodo = [
-                'año' => $metadata['año'],
-                'mes' => $metadata['mes'] ?? (int) date('n'),
-                'mes_nombre' => $metadata['mes_nombre'] ?? 'Periodo actual',
-                'serie' => $metadata['serie'] ?? 'A',
-            ];
+                $pendingInputs = $this->remReader->determinePendingInputs(
+                    $group['extracted'],
+                    $est,
+                    $group['año'],
+                    $filtroTipo
+                );
 
-            if (! empty($pendingInputs)) {
+                $tempToken = (string) Str::uuid();
+
+                Cache::put("rem_pending_{$tempToken}", [
+                    'archivos' => $group['archivos_procesados'],
+                    'metadata' => [
+                        'año' => $group['año'],
+                        'mes' => $group['mes'],
+                        'mes_nombre' => $group['mes_nombre'],
+                        'serie' => implode(' / ', array_unique($group['series'] ?: ['A'])),
+                    ],
+                    'establecimiento_id' => $est->id,
+                    'extracted' => $group['extracted'],
+                    'filtro_tipo' => $filtroTipo,
+                ], now()->addHours(2));
+
+                $group['temp_token'] = $tempToken;
+                $group['pending_inputs'] = $pendingInputs;
+            }
+            unset($group);
+
+            // Caso 1: Un solo establecimiento / periodo (caso habitual o consolidación de varias planillas para el mismo CESFAM)
+            if (count($groups) === 1) {
+                $single = reset($groups);
+                $est = $single['establecimiento'];
+                $periodo = [
+                    'año' => $single['año'],
+                    'mes' => $single['mes'] ?? (int) date('n'),
+                    'mes_nombre' => $single['mes_nombre'] ?? 'Periodo actual',
+                    'serie' => implode(' / ', array_unique($single['series'] ?: ['A'])),
+                ];
+
+                $status = ! empty($single['pending_inputs']) ? 'requires_input' : 'ready';
+
                 return response()->json([
-                    'status' => 'requires_input',
-                    'temp_token' => $tempToken,
+                    'status' => $status,
+                    'temp_token' => $single['temp_token'],
                     'establecimiento' => [
-                        'id' => $establecimiento->id,
-                        'nombre' => $establecimiento->nombre,
-                        'codigo_deis' => $establecimiento->codigo_deis,
-                        'poblacion_inscrita' => $establecimiento->poblacion_inscrita,
+                        'id' => $est->id,
+                        'nombre' => $est->nombre,
+                        'codigo_deis' => $est->codigo_deis,
+                        'poblacion_inscrita' => $est->poblacion_inscrita,
                     ],
                     'periodo' => $periodo,
-                    'extracted_metas' => $extracted,
-                    'pending_inputs' => $pendingInputs,
+                    'extracted_metas' => $single['extracted'],
+                    'pending_inputs' => $single['pending_inputs'],
+                    'archivos_procesados' => $single['archivos_procesados'],
+                    'is_multiple' => count($uploadedFiles) > 1,
+                    'total_archivos' => count($uploadedFiles),
                 ]);
             }
 
+            // Caso 2: Múltiples establecimientos en el mismo lote
+            $gruposData = array_values(array_map(function ($g) {
+                return [
+                    'temp_token' => $g['temp_token'],
+                    'establecimiento' => [
+                        'id' => $g['establecimiento']->id,
+                        'nombre' => $g['establecimiento']->nombre,
+                        'codigo_deis' => $g['establecimiento']->codigo_deis,
+                        'poblacion_inscrita' => $g['establecimiento']->poblacion_inscrita,
+                    ],
+                    'periodo' => [
+                        'año' => $g['año'],
+                        'mes' => $g['mes'],
+                        'mes_nombre' => $g['mes_nombre'],
+                        'serie' => implode(' / ', array_unique($g['series'] ?: ['A'])),
+                    ],
+                    'archivos_procesados' => $g['archivos_procesados'],
+                    'total_indicadores' => count($g['extracted']),
+                    'pending_inputs' => $g['pending_inputs'],
+                    'requires_input' => ! empty($g['pending_inputs']),
+                ];
+            }, $groups));
+
             return response()->json([
-                'status' => 'ready',
-                'temp_token' => $tempToken,
-                'establecimiento' => [
-                    'id' => $establecimiento->id,
-                    'nombre' => $establecimiento->nombre,
-                    'codigo_deis' => $establecimiento->codigo_deis,
-                    'poblacion_inscrita' => $establecimiento->poblacion_inscrita,
-                ],
-                'periodo' => $periodo,
-                'extracted_metas' => $extracted,
-                'pending_inputs' => [],
+                'status' => 'batch_ready',
+                'message' => 'Se procesaron '.count($uploadedFiles).' planillas correspondientes a '.count($groups).' establecimientos distintos.',
+                'total_archivos' => count($uploadedFiles),
+                'total_establecimientos' => count($groups),
+                'grupos' => $gruposData,
             ]);
+
         } catch (\Throwable $e) {
-            Log::error('Error al previsualizar archivo REM: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('Error al previsualizar archivo(s) REM: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Ocurrió un error al procesar la planilla: '.$e->getMessage(),
+                'message' => 'Ocurrió un error al procesar las planillas: '.$e->getMessage(),
             ], 422);
         }
     }
@@ -197,6 +320,10 @@ class ImportacionController extends Controller
      */
     public function guardar(Request $request): JsonResponse
     {
+        if ($request->has('batch') && is_array($request->input('batch'))) {
+            return $this->guardarBatch($request);
+        }
+
         $request->validate([
             'temp_token' => ['required', 'string'],
             'establecimiento_id' => ['required', 'exists:establecimientos,id'],
@@ -215,6 +342,101 @@ class ImportacionController extends Controller
         $userInputs = $request->input('inputs', []);
 
         $extracted = $sessionData['extracted'] ?? [];
+        $savedMedidas = $this->calculateAndSaveIndicadores($establecimiento, $año, $mes, $extracted, $userInputs);
+
+        // Limpiar caché
+        Cache::forget("rem_pending_{$tempToken}");
+
+        $totales = [
+            'cumpliendo' => collect($savedMedidas)->where('estado', 'Cumpliendo')->count(),
+            'en_riesgo' => collect($savedMedidas)->where('estado', 'En Riesgo')->count(),
+            'critico' => collect($savedMedidas)->where('estado', 'Crítico')->count(),
+            'total' => count($savedMedidas),
+            'metas_count' => collect($savedMedidas)->where('tipo', 'Meta Sanitaria')->count(),
+            'iaaps_count' => collect($savedMedidas)->where('tipo', 'IAAPS')->count(),
+        ];
+
+        // Preparar series para ApexCharts
+        $chartData = [
+            'categories' => collect($savedMedidas)->pluck('codigo')->toArray(),
+            'cumplimiento' => collect($savedMedidas)->pluck('porcentaje')->toArray(),
+            'objetivos' => collect($savedMedidas)->pluck('objetivo')->toArray(),
+            'tipos' => collect($savedMedidas)->pluck('tipo')->toArray(),
+        ];
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Importación REM y cálculo de indicadores (Metas e IAAPS) completados con éxito.',
+            'establecimiento' => [
+                'id' => $establecimiento->id,
+                'nombre' => $establecimiento->nombre,
+                'poblacion_inscrita' => $establecimiento->poblacion_inscrita,
+            ],
+            'periodo' => [
+                'año' => $año,
+                'mes' => $mes,
+            ],
+            'totales' => $totales,
+            'medidas' => $savedMedidas,
+            'chart' => $chartData,
+        ]);
+    }
+
+    /**
+     * Guarda en lote mediciones para múltiples establecimientos.
+     */
+    protected function guardarBatch(Request $request): JsonResponse
+    {
+        $batch = $request->input('batch', []);
+        $results = [];
+        $totalMedidasCount = 0;
+
+        foreach ($batch as $item) {
+            $tempToken = $item['temp_token'] ?? null;
+            $establecimientoId = (int) ($item['establecimiento_id'] ?? 0);
+            $año = (int) ($item['año'] ?? date('Y'));
+            $mes = (int) ($item['mes'] ?? date('n'));
+            $userInputs = $item['inputs'] ?? [];
+
+            $establecimiento = Establecimiento::find($establecimientoId);
+            if (! $establecimiento) {
+                continue;
+            }
+
+            $sessionData = $tempToken ? Cache::get("rem_pending_{$tempToken}") : null;
+            $extracted = $sessionData['extracted'] ?? [];
+
+            $savedMedidas = $this->calculateAndSaveIndicadores($establecimiento, $año, $mes, $extracted, $userInputs);
+            if ($tempToken) {
+                Cache::forget("rem_pending_{$tempToken}");
+            }
+
+            $totalMedidasCount += count($savedMedidas);
+            $results[] = [
+                'establecimiento' => [
+                    'id' => $establecimiento->id,
+                    'nombre' => $establecimiento->nombre,
+                ],
+                'medidas_guardadas' => count($savedMedidas),
+            ];
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Se procesaron y guardaron {$totalMedidasCount} mediciones para ".count($results).' establecimientos.',
+            'total_establecimientos' => count($results),
+            'total_medidas' => $totalMedidasCount,
+            'detalles' => $results,
+        ]);
+    }
+
+    /**
+     * Calcula y persiste las mediciones para un establecimiento y periodo dado.
+     *
+     * @return list<array<string, mixed>>
+     */
+    protected function calculateAndSaveIndicadores(Establecimiento $establecimiento, int $año, int $mes, array $extracted, array $userInputs): array
+    {
         $pobTotal = $establecimiento->poblacion_inscrita ?? 0;
 
         // Catálogo de Indicadores activos (Metas Sanitarias e IAAPS)
@@ -247,13 +469,33 @@ class ImportacionController extends Controller
                     break;
 
                 case 'MS-03':
-                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_ms_03'] ?? 0));
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_ms_03'] ?? ($userInputs['numerador_ms_03_a'] ?? 0)));
                     $denominador = (float) ($userInputs['poblacion_fonasa_0_9'] ?? 0);
                     break;
 
+                case 'MS-03.A':
+                case 'MS-03A':
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_ms_03_a'] ?? ($userInputs['numerador_ms_03'] ?? 0)));
+                    $denominador = (float) ($userInputs['poblacion_fonasa_0_9'] ?? 0);
+                    break;
+
+                case 'MS-03.B':
+                case 'MS-03B':
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_ms_03_b'] ?? 0));
+                    $denominador = (float) ($userInputs['poblacion_fonasa_6_anos'] ?? 0);
+                    break;
+
                 case 'MS-04':
+                case 'MS-04.A':
+                case 'MS-04A':
                     $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_dm2_compensada'] ?? 0));
                     $denominador = (float) ($userInputs['poblacion_estimada_dm2'] ?? 0);
+                    break;
+
+                case 'MS-04.B':
+                case 'MS-04B':
+                    $numerador = (float) ($metaExtracted['numerador'] ?? ($userInputs['numerador_pie_diabetico'] ?? 0));
+                    $denominador = (float) ($metaExtracted['denominador'] ?? ($userInputs['dm2_bajo_control'] ?? 0));
                     break;
 
                 case 'MS-05':
@@ -445,41 +687,6 @@ class ImportacionController extends Controller
             ];
         }
 
-        // Limpiar caché
-        Cache::forget("rem_pending_{$tempToken}");
-
-        $totales = [
-            'cumpliendo' => collect($savedMedidas)->where('estado', 'Cumpliendo')->count(),
-            'en_riesgo' => collect($savedMedidas)->where('estado', 'En Riesgo')->count(),
-            'critico' => collect($savedMedidas)->where('estado', 'Crítico')->count(),
-            'total' => count($savedMedidas),
-            'metas_count' => collect($savedMedidas)->where('tipo', 'Meta Sanitaria')->count(),
-            'iaaps_count' => collect($savedMedidas)->where('tipo', 'IAAPS')->count(),
-        ];
-
-        // Preparar series para ApexCharts
-        $chartData = [
-            'categories' => collect($savedMedidas)->pluck('codigo')->toArray(),
-            'cumplimiento' => collect($savedMedidas)->pluck('porcentaje')->toArray(),
-            'objetivos' => collect($savedMedidas)->pluck('objetivo')->toArray(),
-            'tipos' => collect($savedMedidas)->pluck('tipo')->toArray(),
-        ];
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Importación REM y cálculo de indicadores (Metas e IAAPS) completados con éxito.',
-            'establecimiento' => [
-                'id' => $establecimiento->id,
-                'nombre' => $establecimiento->nombre,
-                'poblacion_inscrita' => $establecimiento->poblacion_inscrita,
-            ],
-            'periodo' => [
-                'año' => $año,
-                'mes' => $mes,
-            ],
-            'totales' => $totales,
-            'medidas' => $savedMedidas,
-            'chart' => $chartData,
-        ]);
+        return $savedMedidas;
     }
 }

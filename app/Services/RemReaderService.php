@@ -205,8 +205,10 @@ class RemReaderService
     }
 
     /**
-     * Evalúa una expresión de celda(s) o rango(s) separados por comas o signos '+'
-     * (ej: 'G21', 'J26, K26', 'J26:M26, J28:M28', 'F206:Y207').
+     * Evalúa una expresión matemática de celda(s) o rango(s) con suma, resta y paréntesis
+     * (ej: 'G21', 'J26, K26', 'J26:M26, J28:M28', 'F206:Y207',
+     *  '(J23+ K23+ L23+ M23) (menos) (J37+ K37+ L37 +M37+ J40+ K40+ L40 +M40)',
+     *  '(J23:M23) - (J37:M37, J40:M40)').
      */
     public function evaluateCellExpression(?Worksheet $sheet, ?string $expression): ?float
     {
@@ -214,31 +216,79 @@ class RemReaderService
             return null;
         }
 
-        $tokens = preg_split('/[,+]/', $expression);
+        // 1. Normalizar expresión: reemplazar 'menos' y '(menos)' por '-', normalizar celdas con espacios como 'J 206' -> 'J206'
+        $expr = preg_replace('/\bmenos\b|\(menos\)/i', '-', (string) $expression);
+        $expr = preg_replace('/([A-Za-z]+)\s+(\d+)/', '$1$2', $expr);
+
+        // 2. Tokenizar operadores y operandos (celdas, rangos, signos y paréntesis)
+        if (! preg_match_all('/([A-Za-z]+\d+(?:\s*:\s*[A-Za-z]+\d+)?|[(),+\-])/', $expr, $matches)) {
+            return null;
+        }
+
+        $tokens = $matches[0];
         $total = 0.0;
         $foundAny = false;
 
+        $signStack = [1];
+        $nextSign = 1;
+
         foreach ($tokens as $token) {
-            $token = trim((string) $token);
-            if ($token === '') {
+            $token = trim($token);
+            if ($token === '' || $token === ',') {
+                $nextSign = 1;
+
                 continue;
             }
 
+            if ($token === '+') {
+                $nextSign = 1;
+
+                continue;
+            }
+
+            if ($token === '-') {
+                $nextSign = -1;
+
+                continue;
+            }
+
+            if ($token === '(') {
+                $currentContext = end($signStack) ?: 1;
+                $signStack[] = $currentContext * $nextSign;
+                $nextSign = 1;
+
+                continue;
+            }
+
+            if ($token === ')') {
+                if (count($signStack) > 1) {
+                    array_pop($signStack);
+                }
+                $nextSign = 1;
+
+                continue;
+            }
+
+            // Operando (Rango o Celda)
+            $currentContext = end($signStack) ?: 1;
+            $effectiveSign = $currentContext * $nextSign;
+            $nextSign = 1;
+
             if (str_contains($token, ':')) {
                 [$start, $end] = explode(':', $token, 2);
-                $start = trim($start);
-                $end = trim($end);
+                $start = strtoupper(trim($start));
+                $end = strtoupper(trim($end));
 
-                // Separar letra(s) de columna y número de fila
-                if (preg_match('/^([A-Za-z]+)(\d+)$/', $start, $mStart) && preg_match('/^([A-Za-z]+)(\d+)$/', $end, $mEnd)) {
+                if (preg_match('/^([A-Z]+)(\d+)$/', $start, $mStart) && preg_match('/^([A-Z]+)(\d+)$/', $end, $mEnd)) {
                     $valRange = $this->sumCellRange($sheet, $mStart[1], (int) $mStart[2], $mEnd[1], (int) $mEnd[2]);
-                    $total += $valRange;
+                    $total += ($effectiveSign * $valRange);
                     $foundAny = true;
                 }
             } else {
-                $cellVal = $this->getCalculatedCell($sheet, $token);
+                $coord = strtoupper($token);
+                $cellVal = $this->getCalculatedCell($sheet, $coord);
                 if ($cellVal !== null) {
-                    $total += $cellVal;
+                    $total += ($effectiveSign * $cellVal);
                     $foundAny = true;
                 }
             }
@@ -462,6 +512,33 @@ class RemReaderService
             }
         }
 
+        // META III.A: Pauta CERO 0 a 9 años (REM-A03 F206:Y207)
+        if ($cero09 > 0) {
+            $results['MS-03.A'] = [
+                'numerador' => $cero09,
+                'denominador' => null, // Población inscrita validada FONASA (0 a 9 años)
+                'fuente' => 'REM-A03 (Sección D.7, F206:Y207)',
+                'detalles' => [
+                    'pauta_cero_0_9' => $cero09,
+                ],
+            ];
+            $results['MS-03A'] = $results['MS-03.A'];
+        }
+
+        // META III.B: Libres de Caries 6 años (REM-A09 S51+T51)
+        if ($libresCaries6a > 0) {
+            $results['MS-03.B'] = [
+                'numerador' => $libresCaries6a,
+                'denominador' => null, // Población inscrita validada FONASA (6 años)
+                'fuente' => 'REM-A09 (Sección C, S51+T51)',
+                'detalles' => [
+                    'libres_caries_6_anos' => $libresCaries6a,
+                ],
+            ];
+            $results['MS-03B'] = $results['MS-03.B'];
+        }
+
+        // Compatibilidad hacia atrás con MS-03
         if ($cero09 > 0 || $libresCaries6a > 0) {
             $results['MS-03'] = [
                 'numerador' => $cero09 > 0 ? $cero09 : $libresCaries6a,
@@ -561,6 +638,29 @@ class RemReaderService
                         'dm2_bajo_control_c17' => $dmBajoControl,
                     ],
                 ];
+            }
+
+            if ($dmComp > 0) {
+                $results['MS-04.A'] = [
+                    'numerador' => $dmComp,
+                    'denominador' => null,
+                    'fuente' => 'REM-P4 (Sección B, C31+C32)',
+                    'detalles' => ['dm2_compensada' => $dmComp],
+                ];
+                $results['MS-04A'] = $results['MS-04.A'];
+            }
+
+            if ($pieDiab > 0) {
+                $results['MS-04.B'] = [
+                    'numerador' => $pieDiab,
+                    'denominador' => $dmBajoControl > 0 ? $dmBajoControl : null,
+                    'fuente' => 'REM-P4 (Sección C, C62:C65)',
+                    'detalles' => [
+                        'pie_diabetico_evaluado' => $pieDiab,
+                        'dm2_bajo_control_c17' => $dmBajoControl,
+                    ],
+                ];
+                $results['MS-04B'] = $results['MS-04.B'];
             }
 
             // META V (HTA Compensadas): PA < 140/90 (Fila 29 C29) + PA < 150/90 (Fila 30 C30)
@@ -1065,8 +1165,56 @@ class RemReaderService
             ];
         }
 
-        // MS-03: Odontología
-        if (isset($indicadores['MS-03'])) {
+        // MS-03.A: Odontología 0 a 9 años (Pauta CERO)
+        if (isset($indicadores['MS-03.A']) || isset($indicadores['MS-03A'])) {
+            $key = isset($indicadores['MS-03.A']) ? 'MS-03.A' : 'MS-03A';
+            $data = $extracted[$key] ?? $extracted['MS-03'] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => $key,
+                    'input_key' => 'numerador_ms_03_a',
+                    'title' => 'Meta III.A: Pauta CERO 0 a 9 años (Numerador)',
+                    'text' => "Ingrese el N° de niños(as) de 0 a 9 años en control con pauta CERO aplicada ({$año}):",
+                    'default_value' => null,
+                ];
+            }
+
+            $defFonasa09 = $pobTotal > 0 ? (float) round($pobTotal * 0.12) : null;
+            $pending[] = [
+                'meta_codigo' => $key,
+                'input_key' => 'poblacion_fonasa_0_9',
+                'title' => 'Meta III.A: Población 0 a 9 años FONASA (Denominador)',
+                'text' => "Ingrese la población de 0 a 9 años inscrita y validada por FONASA ({$año}):",
+                'default_value' => $defFonasa09,
+            ];
+        }
+
+        // MS-03.B: Niños y niñas de 6 años libres de caries (CEOD = 0)
+        if (isset($indicadores['MS-03.B']) || isset($indicadores['MS-03B'])) {
+            $key = isset($indicadores['MS-03.B']) ? 'MS-03.B' : 'MS-03B';
+            $data = $extracted[$key] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => $key,
+                    'input_key' => 'numerador_ms_03_b',
+                    'title' => 'Meta III.B: Libres de Caries 6 años (Numerador)',
+                    'text' => "Ingrese el N° de niños(as) de 6 años con CEOD = 0 ({$año}):",
+                    'default_value' => null,
+                ];
+            }
+
+            $defFonasa6 = $pobTotal > 0 ? (float) round($pobTotal * 0.013) : null;
+            $pending[] = [
+                'meta_codigo' => $key,
+                'input_key' => 'poblacion_fonasa_6_anos',
+                'title' => 'Meta III.B: Población 6 años FONASA (Denominador)',
+                'text' => "Ingrese la población de 6 años inscrita y validada por FONASA ({$año}):",
+                'default_value' => $defFonasa6,
+            ];
+        }
+
+        // MS-03 legado (Salud Bucal Infantil)
+        if (isset($indicadores['MS-03']) && ! isset($indicadores['MS-03.A']) && ! isset($indicadores['MS-03A'])) {
             $data = $extracted['MS-03'] ?? null;
             if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
                 $pending[] = [
@@ -1088,12 +1236,13 @@ class RemReaderService
             ];
         }
 
-        // MS-04: DM2 Compensada
-        if (isset($indicadores['MS-04'])) {
-            $data = $extracted['MS-04'] ?? null;
+        // MS-04 / MS-04.A: DM2 Compensada
+        if (isset($indicadores['MS-04']) || isset($indicadores['MS-04.A']) || isset($indicadores['MS-04A'])) {
+            $key = isset($indicadores['MS-04']) ? 'MS-04' : (isset($indicadores['MS-04.A']) ? 'MS-04.A' : 'MS-04A');
+            $data = $extracted[$key] ?? $extracted['MS-04'] ?? null;
             if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
                 $pending[] = [
-                    'meta_codigo' => 'MS-04',
+                    'meta_codigo' => $key,
                     'input_key' => 'numerador_dm2_compensada',
                     'title' => 'Meta IV.A: Diabetes Mellitus (Numerador)',
                     'text' => "Ingrese el N° de personas de 15 años y más con DM2 compensada (HbA1c <7% o <8%) ({$año}):",
@@ -1103,12 +1252,38 @@ class RemReaderService
 
             $defDm2 = $pobTotal > 0 ? (float) round($pobTotal * 0.088) : null;
             $pending[] = [
-                'meta_codigo' => 'MS-04',
+                'meta_codigo' => $key,
                 'input_key' => 'poblacion_estimada_dm2',
                 'title' => 'Meta IV.A: Diabetes Mellitus (Denominador ENS)',
                 'text' => "Ingrese el N° estimado de personas de 15 años y más con DM2 según prevalencia ENS ({$año}):",
                 'default_value' => $defDm2,
             ];
+        }
+
+        // MS-04.B: Evaluación anual de pie diabético
+        if (isset($indicadores['MS-04.B']) || isset($indicadores['MS-04B'])) {
+            $key = isset($indicadores['MS-04.B']) ? 'MS-04.B' : 'MS-04B';
+            $data = $extracted[$key] ?? null;
+            if ($data === null || $data['numerador'] === null || $data['numerador'] <= 0) {
+                $pending[] = [
+                    'meta_codigo' => $key,
+                    'input_key' => 'numerador_pie_diabetico',
+                    'title' => 'Meta IV.B: Evaluación Pie Diabético (Numerador)',
+                    'text' => "Ingrese el N° de personas de 15 años y más con DM2 con evaluación de pie diabético vigente ({$año}):",
+                    'default_value' => null,
+                ];
+            }
+
+            if ($data === null || $data['denominador'] === null || $data['denominador'] <= 0) {
+                $defDm2BajoControl = $pobTotal > 0 ? (float) round($pobTotal * 0.055) : null;
+                $pending[] = [
+                    'meta_codigo' => $key,
+                    'input_key' => 'dm2_bajo_control',
+                    'title' => 'Meta IV.B: DM2 Bajo Control (Denominador)',
+                    'text' => "Ingrese el N° de personas de 15 años y más con DM2 bajo control ({$año}):",
+                    'default_value' => $defDm2BajoControl,
+                ];
+            }
         }
 
         // MS-05: HTA Compensada

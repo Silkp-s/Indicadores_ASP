@@ -62,15 +62,15 @@
     <div class="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-xs">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#F1F5F9] pb-4">
             <div>
-                <h2 class="text-lg font-bold text-brand-950">Subir Planilla Oficial REM</h2>
+                <h2 class="text-lg font-bold text-brand-950">Subir Planillas Oficiales REM</h2>
                 <p class="text-sm text-[#64748B]">
-                    El sistema detectará automáticamente el Establecimiento (código DEIS), Año y Mes de corte sin intervención manual.
+                    Puedes subir una o múltiples planillas simultáneamente (ej: Serie A y Serie P). El sistema detectará automáticamente el Establecimiento, Año, Mes y consolidará los indicadores.
                 </p>
             </div>
             <div class="flex items-center gap-2">
                 <span class="inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-3 py-1 text-xs font-medium text-brand-800">
                     <span class="h-2 w-2 rounded-full bg-accent-500"></span>
-                    Formatos aceptados: .xlsm, .xlsx
+                    Carga múltiple: .xlsm, .xlsx
                 </span>
             </div>
         </div>
@@ -82,41 +82,59 @@
             {{-- Dropzone visual --}}
             <div
                 id="dropzone"
-                class="group relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-6 py-10 text-center transition-all hover:border-accent-500 hover:bg-[#F1F5FD]"
+                class="group relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-6 text-center transition-all hover:border-accent-500 hover:bg-[#F1F5FD]"
             >
                 <input
                     type="file"
                     id="archivo"
-                    name="archivo"
+                    name="archivos[]"
+                    multiple
                     accept=".xlsm,.xlsx,.xls"
-                    class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    class="absolute inset-0 h-full w-full cursor-pointer opacity-0 z-10"
                 >
 
-                <div class="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-xs transition-transform group-hover:scale-105">
-                    <svg class="h-7 w-7 text-accent-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                </div>
-
-                <div class="mt-4 space-y-1">
-                    <p class="text-sm font-semibold text-brand-950">
-                        Arrastra y suelta tu archivo REM aquí o <span class="text-accent-600 underline">haz clic para examinar</span>
-                    </p>
-                    <p class="text-xs text-[#64748B]">
-                        Archivos oficiales MINSAL (ejemplo: <code class="rounded bg-[#E2E8F0] px-1 py-0.5 text-brand-950 font-mono">119308A06.xlsm</code> o <code class="rounded bg-[#E2E8F0] px-1 py-0.5 text-brand-950 font-mono">119308P06.xlsm</code>)
-                    </p>
-                </div>
-
-                {{-- Archivo seleccionado detalle --}}
-                <div id="file-info" class="mt-4 hidden items-center gap-3 rounded-lg border border-[#CBD5E1] bg-white px-4 py-2.5 shadow-xs">
-                    <svg class="h-5 w-5 text-[#16A34A]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    <div class="text-left leading-tight">
-                        <p id="file-name" class="max-w-xs truncate text-sm font-medium text-brand-950">archivo.xlsm</p>
-                        <p id="file-size" class="text-xs text-[#64748B]">0 KB</p>
+                {{-- Estado inicial / vacío --}}
+                <div id="dropzone-empty-state" class="py-6 flex flex-col items-center pointer-events-none">
+                    <div class="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-xs transition-transform group-hover:scale-105">
+                        <svg class="h-7 w-7 text-accent-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
                     </div>
-                    <button type="button" id="btn-remove-file" class="ml-2 text-xs text-[#E11D2E] hover:underline">Quitar</button>
+
+                    <div class="mt-4 space-y-1">
+                        <p class="text-sm font-semibold text-brand-950">
+                            Arrastra y suelta tus planillas REM aquí o <span class="text-accent-600 underline">haz clic para examinar</span>
+                        </p>
+                        <p class="text-xs text-[#64748B]">
+                            Puedes seleccionar múltiples archivos a la vez (ejemplo: <code class="rounded bg-[#E2E8F0] px-1 py-0.5 text-brand-950 font-mono">119308A06.xlsm</code> y <code class="rounded bg-[#E2E8F0] px-1 py-0.5 text-brand-950 font-mono">119308P06.xlsm</code>)
+                        </p>
+                    </div>
+                </div>
+
+                {{-- Contenedor de archivos seleccionados (Visible al cargar 1 o más archivos) --}}
+                <div id="files-container" class="hidden w-full space-y-3 z-20">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2E8F0] pb-2 text-left">
+                        <div class="flex items-center gap-2">
+                            <span id="files-count-badge" class="rounded-full bg-accent-500/10 px-2.5 py-0.5 text-xs font-bold text-accent-700">
+                                0 planillas seleccionadas
+                            </span>
+                            <span class="text-xs text-[#64748B]">Listas para procesar</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button type="button" id="btn-add-more" class="inline-flex items-center gap-1 text-xs font-semibold text-accent-600 hover:text-accent-800 hover:underline">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                Añadir más
+                            </button>
+                            <span class="text-[#CBD5E1]">|</span>
+                            <button type="button" id="btn-clear-files" class="text-xs font-medium text-[#E11D2E] hover:underline">
+                                Limpiar todas
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Lista de tarjetas de archivos --}}
+                    <div id="selected-files-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    </div>
                 </div>
             </div>
 
@@ -156,7 +174,7 @@
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                     </svg>
-                    <span id="btn-text">Procesar y Proyectar Indicadores</span>
+                    <span id="btn-text">Procesar Planillas REM</span>
                 </button>
             </div>
         </form>
@@ -196,6 +214,10 @@
                     <span id="meta-serie" class="text-sm font-bold text-accent-600">Serie A</span>
                 </div>
             </div>
+        </div>
+
+        {{-- Fila con badges de planillas procesadas --}}
+        <div id="meta-archivos-procesados" class="mt-4 hidden flex-wrap items-center gap-2 border-t border-[#B8D5FA]/70 pt-3">
         </div>
     </div>
 
@@ -387,16 +409,18 @@
 document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('archivo');
     const dropzone = document.getElementById('dropzone');
-    const fileInfo = document.getElementById('file-info');
-    const fileName = document.getElementById('file-name');
-    const fileSize = document.getElementById('file-size');
-    const btnRemoveFile = document.getElementById('btn-remove-file');
+    const emptyState = document.getElementById('dropzone-empty-state');
+    const filesContainer = document.getElementById('files-container');
+    const filesList = document.getElementById('selected-files-list');
+    const filesCountBadge = document.getElementById('files-count-badge');
+    const btnAddMore = document.getElementById('btn-add-more');
+    const btnClearFiles = document.getElementById('btn-clear-files');
     const btnProcesar = document.getElementById('btn-procesar');
     const btnText = document.getElementById('btn-text');
     const spinner = document.getElementById('spinner');
     const formImportar = document.getElementById('form-importar');
 
-    let currentFile = null;
+    let selectedFiles = [];
     let chartBarras = null;
     let chartDonut = null;
 
@@ -418,53 +442,143 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     dropzone.addEventListener('drop', (e) => {
-        const files = e.dataTransfer.files;
+        const files = Array.from(e.dataTransfer.files || []);
         if (files.length > 0) {
-            handleSelectedFile(files[0]);
+            addFiles(files);
         }
     });
 
     fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            handleSelectedFile(e.target.files[0]);
+        const files = Array.from(e.target.files || []);
+        if (files.length > 0) {
+            addFiles(files);
         }
+        fileInput.value = '';
     });
 
-    btnRemoveFile.addEventListener('click', (e) => {
-        e.stopPropagation();
-        resetFileInput();
-    });
-
-    function handleSelectedFile(file) {
-        currentFile = file;
-        fileName.textContent = file.name;
-        fileSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
-        fileInfo.classList.remove('hidden');
-        fileInfo.classList.add('flex');
-        btnProcesar.disabled = false;
+    if (btnAddMore) {
+        btnAddMore.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
     }
 
-    function resetFileInput() {
-        currentFile = null;
+    if (btnClearFiles) {
+        btnClearFiles.addEventListener('click', (e) => {
+            e.stopPropagation();
+            clearAllFiles();
+        });
+    }
+
+    function addFiles(newFiles) {
+        for (const file of newFiles) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['xlsm', 'xlsx', 'xls'].includes(ext)) {
+                continue;
+            }
+            if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                selectedFiles.push(file);
+            }
+        }
+        renderFilesList();
+    }
+
+    function removeFile(index) {
+        selectedFiles.splice(index, 1);
+        renderFilesList();
+    }
+
+    function clearAllFiles() {
+        selectedFiles = [];
         fileInput.value = '';
-        fileInfo.classList.add('hidden');
-        fileInfo.classList.remove('flex');
-        btnProcesar.disabled = true;
+        renderFilesList();
+    }
+
+    function renderFilesList() {
+        if (selectedFiles.length === 0) {
+            filesContainer.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            btnProcesar.disabled = true;
+            btnText.textContent = 'Procesar Planillas REM';
+            return;
+        }
+
+        filesContainer.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+        btnProcesar.disabled = false;
+
+        const count = selectedFiles.length;
+        filesCountBadge.textContent = `${count} ${count === 1 ? 'planilla seleccionada' : 'planillas seleccionadas'}`;
+        btnText.textContent = count === 1
+            ? 'Procesar 1 Planilla REM y Proyectar Indicadores'
+            : `Procesar ${count} Planillas REM y Consolidar Datos`;
+
+        filesList.innerHTML = '';
+        selectedFiles.forEach((file, index) => {
+            const sizeFormatted = file.size > 1048576
+                ? (file.size / 1048576).toFixed(2) + ' MB'
+                : (file.size / 1024).toFixed(1) + ' KB';
+
+            let seriePill = '';
+            const upper = file.name.toUpperCase();
+            if (upper.includes('A0') || upper.includes('A1') || upper.includes('A2') || upper.includes('A3') || upper.includes('SERIEA') || upper.includes('SERIE_A')) {
+                seriePill = '<span class="rounded bg-blue-100 text-blue-800 text-[10px] font-bold px-1.5 py-0.5">Serie A</span>';
+            } else if (upper.includes('P0') || upper.includes('P1') || upper.includes('P2') || upper.includes('P4') || upper.includes('P6') || upper.includes('P12') || upper.includes('SERIEP') || upper.includes('SERIE_P')) {
+                seriePill = '<span class="rounded bg-purple-100 text-purple-800 text-[10px] font-bold px-1.5 py-0.5">Serie P</span>';
+            }
+
+            const card = document.createElement('div');
+            card.className = 'flex items-center justify-between gap-3 rounded-lg border border-[#CBD5E1] bg-white p-3 shadow-xs transition-all hover:border-accent-500 hover:shadow-sm text-left';
+            card.innerHTML = `
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#E7F9EF] text-[#16A34A]">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <div class="min-w-0 flex-1 leading-tight">
+                        <p class="truncate text-xs font-bold text-brand-950" title="${file.name}">${file.name}</p>
+                        <div class="mt-1 flex items-center gap-2 text-[11px] text-[#64748B]">
+                            <span>${sizeFormatted}</span>
+                            ${seriePill}
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-remove-file shrink-0 rounded-md p-1.5 text-[#94A3B8] hover:bg-rose-50 hover:text-[#E11D2E] transition-colors" title="Quitar planilla">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            `;
+
+            card.querySelector('.btn-remove-file').addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeFile(index);
+            });
+
+            filesList.appendChild(card);
+        });
     }
 
     // Envío AJAX
     formImportar.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!currentFile) return;
+        if (selectedFiles.length === 0) return;
 
         await ejecutarProcesamiento();
     });
 
     async function ejecutarProcesamiento(overrideEstablecimientoId = null) {
+        if (selectedFiles.length === 0) return;
         setLoading(true);
 
         const formData = new FormData();
-        formData.append('archivo', currentFile);
+        selectedFiles.forEach(file => {
+            formData.append('archivos[]', file);
+        });
+        // Soporte de compatibilidad enviando además 'archivo'
+        formData.append('archivo', selectedFiles[0]);
+
         const tipoIndicadores = document.querySelector('input[name="tipo_indicadores"]:checked')?.value || 'todas';
         formData.append('tipo_indicadores', tipoIndicadores);
         if (overrideEstablecimientoId) {
@@ -490,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Swal.fire({
                     icon: 'error',
                     title: 'Error de Lectura',
-                    text: data.message || 'No fue posible procesar la planilla seleccionada.'
+                    text: data.message || 'No fue posible procesar la(s) planilla(s) seleccionada(s).'
                 });
                 return;
             }
@@ -501,8 +615,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // Múltiples establecimientos detectados en lote
+            if (data.status === 'batch_ready') {
+                await manejarLoteMultiEstablecimiento(data);
+                return;
+            }
+
             // Actualizar banner visual de metadatos detectados
-            mostrarBannerMetadatos(data.establecimiento, data.periodo);
+            mostrarBannerMetadatos(data.establecimiento, data.periodo, data.archivos_procesados);
 
             // Denominadores pendientes: Iterar preguntas interactivas con SweetAlert2
             if (data.status === 'requires_input' && data.pending_inputs && data.pending_inputs.length > 0) {
@@ -522,6 +642,95 @@ document.addEventListener('DOMContentLoaded', () => {
                 icon: 'error',
                 title: 'Error de Red',
                 text: 'Ocurrió una falla de comunicación con el servidor.'
+            });
+        }
+    }
+
+    // Modal de confirmación cuando se procesan planillas para múltiples establecimientos
+    async function manejarLoteMultiEstablecimiento(data) {
+        const listHtml = data.grupos.map((g, idx) => `
+            <div class="rounded-lg border border-[#CBD5E1] bg-white p-3 text-left mb-2 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-brand-950">${g.establecimiento.nombre}</h4>
+                    <span class="rounded bg-brand-100 text-brand-800 px-2 py-0.5 text-xs font-semibold">DEIS: ${g.establecimiento.codigo_deis || 'N/A'}</span>
+                </div>
+                <div class="mt-1 text-xs text-[#64748B] flex flex-wrap items-center gap-2">
+                    <span>Periodo: <strong>${g.periodo.mes_nombre} ${g.periodo.año}</strong></span>
+                    <span>&bull;</span>
+                    <span>Serie: <strong>${g.periodo.serie}</strong></span>
+                    <span>&bull;</span>
+                    <span>Planillas: <strong>${g.archivos_procesados ? g.archivos_procesados.length : 1}</strong></span>
+                    <span>&bull;</span>
+                    <span class="text-accent-600 font-bold">${g.total_indicadores} indicadores extraídos</span>
+                </div>
+            </div>
+        `).join('');
+
+        const { isConfirmed } = await Swal.fire({
+            icon: 'info',
+            title: 'Planillas de Múltiples Establecimientos',
+            html: `
+                <div class="text-left text-sm text-[#475569] space-y-3">
+                    <p>Se detectaron <strong>${data.total_archivos} planillas</strong> pertenecientes a <strong>${data.total_establecimientos} centros de salud distintos</strong>:</p>
+                    <div class="max-h-60 overflow-y-auto pr-1">
+                        ${listHtml}
+                    </div>
+                    <p class="text-xs text-[#64748B]">¿Desea persistir automáticamente las mediciones extraídas para todos los establecimientos de la red?</p>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Confirmar y Guardar Todos',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0f1424',
+        });
+
+        if (!isConfirmed) return;
+
+        setLoading(true);
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const batchPayload = data.grupos.map(g => ({
+            temp_token: g.temp_token,
+            establecimiento_id: g.establecimiento.id,
+            año: g.periodo.año,
+            mes: g.periodo.mes,
+            inputs: {}
+        }));
+
+        try {
+            const resp = await fetch("{{ route('importacion.guardar') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ batch: batchPayload })
+            });
+            const resData = await resp.json();
+            setLoading(false);
+
+            if (resp.ok && resData.status === 'success') {
+                await Swal.fire({
+                    icon: 'success',
+                    title: '¡Importación por Lote Exitosa!',
+                    text: resData.message,
+                    confirmButtonColor: '#2f6fed'
+                });
+                window.location.reload();
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al Guardar Lote',
+                    text: resData.message || 'No se pudieron persistir todas las mediciones.'
+                });
+            }
+        } catch (e) {
+            setLoading(false);
+            console.error(e);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de Conexión',
+                text: 'Falla al guardar el lote.'
             });
         }
     }
@@ -570,12 +779,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const userInputs = {};
 
         // Alerta introductoria explicativa
+        const archivosCount = data.archivos_procesados ? data.archivos_procesados.length : 1;
+        const archivosInfo = archivosCount > 1 
+            ? `Se consolidaron exitosamente los datos de <strong>${archivosCount} planillas REM (${data.periodo.serie})</strong> para <strong>${data.establecimiento.nombre}</strong>.`
+            : `Se detectaron exitosamente los numeradores del <strong>REM Serie ${data.periodo.serie}</strong> para <strong>${data.establecimiento.nombre}</strong>.`;
+
         const intro = await Swal.fire({
             icon: 'info',
             title: 'Datos Complementarios Requeridos',
             html: `
                 <p class="text-sm text-[#475569]">
-                    Se detectaron exitosamente los numeradores del <strong>REM Serie ${data.periodo.serie}</strong> para <strong>${data.establecimiento.nombre}</strong>.
+                    ${archivosInfo}
                 </p>
                 <p class="mt-2 text-xs text-[#64748B]">
                     A continuación se solicitarán los denominadores demográficos (población FONASA y estimaciones de prevalencia ENS) para proyectar el cumplimiento definitivo.
@@ -709,13 +923,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function mostrarBannerMetadatos(est, per) {
+    function mostrarBannerMetadatos(est, per, archivosProcesados = []) {
         document.getElementById('meta-establecimiento').textContent = est.nombre;
         document.getElementById('meta-deis-badge').textContent = est.codigo_deis ? `DEIS: ${est.codigo_deis}` : 'Sin código';
         document.getElementById('meta-poblacion').textContent = Number(est.poblacion_inscrita || 0).toLocaleString('es-CL');
         document.getElementById('meta-mes').textContent = `${per.mes_nombre} (${String(per.mes).padStart(2, '0')})`;
         document.getElementById('meta-año').textContent = per.año;
-        document.getElementById('meta-serie').textContent = `Serie ${per.serie || 'A'}`;
+        document.getElementById('meta-serie').textContent = per.serie ? `Serie ${per.serie}` : 'Serie A';
+
+        const archivosRow = document.getElementById('meta-archivos-procesados');
+        if (archivosRow) {
+            if (archivosProcesados && archivosProcesados.length > 0) {
+                archivosRow.classList.remove('hidden');
+                archivosRow.classList.add('flex');
+                const pillsHtml = archivosProcesados.map(a => 
+                    `<span class="inline-flex items-center gap-1.5 rounded-md border border-[#B8D5FA] bg-white px-2.5 py-1 text-xs font-semibold text-brand-950 shadow-2xs">
+                        <svg class="h-3.5 w-3.5 text-[#16A34A]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        <span>${a.nombre}</span>
+                        <span class="rounded bg-blue-50 px-1 py-0.2 text-[10px] font-bold text-accent-700">${a.serie || 'REM'}</span>
+                    </span>`
+                ).join('');
+                archivosRow.innerHTML = `
+                    <span class="text-xs font-bold text-[#475569]">Planillas consolidadas (${archivosProcesados.length}):</span>
+                    ${pillsHtml}
+                `;
+            } else {
+                archivosRow.classList.add('hidden');
+                archivosRow.classList.remove('flex');
+            }
+        }
 
         document.getElementById('metadata-banner').classList.remove('hidden');
     }

@@ -46,14 +46,7 @@
     {{-- Marca y Botón Cerrar (móvil) --}}
     <div class="flex items-center justify-between px-5 py-6">
         <div class="flex items-center gap-2.5">
-            <svg class="h-9 w-9 shrink-0" viewBox="0 0 32 32" aria-hidden="true">
-                <circle cx="8.5" cy="12" r="3" class="fill-accent-500" />
-                <path d="M3.5 24c0-3.3 2.2-6 5-6s5 2.7 5 6z" class="fill-accent-500" />
-                <circle cx="23.5" cy="12" r="3" class="fill-[#93B4F8]" />
-                <path d="M18.5 24c0-3.3 2.2-6 5-6s5 2.7 5 6z" class="fill-[#93B4F8]" />
-                <circle cx="16" cy="9" r="3.6" class="fill-white" />
-                <path d="M9.5 27c0-4 2.9-7.2 6.5-7.2s6.5 3.2 6.5 7.2z" class="fill-white" />
-            </svg>
+
             <div class="flex items-center gap-2">
                 <span class="text-[26px] font-bold leading-none tracking-tight text-white">DAS</span>
                 <span class="whitespace-nowrap text-[10.5px] leading-tight text-[#94A3B8]">Inteligencia Sanitaria<br>Talcahuano</span>
