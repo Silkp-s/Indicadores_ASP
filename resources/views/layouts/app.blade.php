@@ -8,6 +8,9 @@
 
     @fonts
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    {{-- SweetAlert2 CDN Global --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="bg-[#F5F7FB] text-[#1E293B] antialiased">
 
@@ -40,22 +43,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
-
-                <form role="search" method="GET" action="{{ route('indicadores.index') }}" class="relative flex-1 min-w-0 max-w-xs sm:max-w-md lg:max-w-xl">
-                    <input type="hidden" name="estado" value="todos">
-                    <svg class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-                    </svg>
-                    <input
-                        type="search"
-                        name="q"
-                        value="{{ request()->routeIs('indicadores.index') && is_string(request()->query('q')) ? request()->query('q') : '' }}"
-                        maxlength="100"
-                        placeholder="Buscar indicador por código o nombre..."
-                        aria-label="Buscar indicador por código o nombre"
-                        class="w-full rounded-lg border border-[#D8DEE9] bg-[#F8FAFC] py-2 sm:py-2.5 pl-10 sm:pl-11 pr-3 sm:pr-4 text-xs sm:text-sm placeholder:text-[#94A3B8] focus:border-accent-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20"
-                    >
-                </form>
 
                 <div class="ml-auto flex items-center gap-2 sm:gap-4 lg:gap-5 shrink-0">
 
@@ -144,6 +131,163 @@
                 closeSidebar();
             }
         });
+    });
+    </script>
+
+    {{-- Sistema Global de SweetAlert2: Confirmación de Eliminación, Alertas Flash y Manejo de Errores 403 / 404 --}}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1. Notificaciones Flash de Sesión
+        @if (session('status'))
+            Swal.fire({
+                icon: 'success',
+                title: '¡Operación Exitosa!',
+                text: {!! json_encode(session('status')) !!},
+                timer: 4000,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end',
+                timerProgressBar: true
+            });
+        @endif
+
+        @if (session('success'))
+            Swal.fire({
+                icon: 'success',
+                title: '¡Operación Exitosa!',
+                text: {!! json_encode(session('success')) !!},
+                timer: 4000,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end',
+                timerProgressBar: true
+            });
+        @endif
+
+        @if (session('error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de Acceso o Validación',
+                text: {!! json_encode(session('error')) !!},
+                confirmButtonColor: '#0f1424',
+                confirmButtonText: 'Entendido'
+            });
+        @endif
+
+        @if (session('warning'))
+            Swal.fire({
+                icon: 'warning',
+                title: 'Atención',
+                text: {!! json_encode(session('warning')) !!},
+                confirmButtonColor: '#0f1424',
+                confirmButtonText: 'Entendido'
+            });
+        @endif
+
+        // 2. Interceptor Global para Confirmar Eliminación con SweetAlert2
+        document.addEventListener('submit', function (e) {
+            const form = e.target;
+            if (!form || form.tagName !== 'FORM') return;
+
+            const methodInput = form.querySelector('input[name="_method"]');
+            const isDelete = (methodInput && methodInput.value.toUpperCase() === 'DELETE')
+                || form.classList.contains('form-eliminar')
+                || form.hasAttribute('data-confirm-delete');
+
+            if (isDelete) {
+                if (form.dataset.swalConfirmed === 'true') {
+                    return;
+                }
+
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
+                const title = form.getAttribute('data-swal-title') || '¿Confirmas que deseas eliminar este registro?';
+                const text = form.getAttribute('data-swal-text') || 'Esta acción no se puede deshacer y los datos asociados se eliminarán permanentemente.';
+                const confirmBtn = form.getAttribute('data-swal-confirm') || 'Sí, eliminar';
+
+                Swal.fire({
+                    title: title,
+                    text: text,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#E11D2E',
+                    cancelButtonColor: '#64748B',
+                    confirmButtonText: confirmBtn,
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true,
+                    focusCancel: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.dataset.swalConfirmed = 'true';
+                        form.submit();
+                    }
+                });
+            }
+        }, true);
+
+        // 3. Interceptor Global para formularios con confirmación genérica (data-confirmar)
+        document.addEventListener('submit', function (e) {
+            const form = e.target;
+            if (!form || form.tagName !== 'FORM') return;
+
+            const mensaje = form.getAttribute('data-confirmar');
+            if (mensaje) {
+                if (form.dataset.swalConfirmed === 'true') {
+                    return;
+                }
+
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
+                Swal.fire({
+                    title: '¿Confirmar acción?',
+                    text: mensaje,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#0f1424',
+                    cancelButtonColor: '#64748B',
+                    confirmButtonText: 'Confirmar',
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.dataset.swalConfirmed = 'true';
+                        form.submit();
+                    }
+                });
+            }
+        }, true);
+
+        // 4. Interceptor Global de Fetch para Respuestas 403 y 404
+        if (window.fetch) {
+            const originalFetch = window.fetch;
+            window.fetch = async function (...args) {
+                try {
+                    const response = await originalFetch.apply(this, args);
+                    if (response.status === 403) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Acceso Denegado (403)',
+                            text: 'No dispones de los permisos necesarios para realizar esta acción.',
+                            confirmButtonColor: '#0f1424',
+                            confirmButtonText: 'Entendido'
+                        });
+                    } else if (response.status === 404) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Recurso No Encontrado (404)',
+                            text: 'El recurso solicitado no fue encontrado en el servidor.',
+                            confirmButtonColor: '#0f1424',
+                            confirmButtonText: 'Entendido'
+                        });
+                    }
+                    return response;
+                } catch (err) {
+                    throw err;
+                }
+            };
+        }
     });
     </script>
 

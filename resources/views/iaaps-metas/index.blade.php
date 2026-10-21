@@ -117,20 +117,6 @@
             </div>
         </form>
 
-        {{-- Botón para abrir modal de nuevo indicador --}}
-        <div class="w-full sm:w-auto shrink-0">
-            <button
-                type="button"
-                data-nuevo-indicador
-                class="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-brand-950 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-brand-800 transition-colors"
-            >
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                <span>Nuevo indicador</span>
-            </button>
-        </div>
-
     </div>
 
     {{-- Tabla / Mantenedor principal (Paginada de 10 en 10) --}}
@@ -146,6 +132,7 @@
                         <th class="px-5 py-3.5 text-right">Meta</th>
                         <th class="px-5 py-3.5">Periodicidad / Fuente</th>
                         <th class="px-5 py-3.5 text-center">Estado</th>
+                        <th class="px-5 py-3.5 text-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-[#E2E8F0]" id="iaaps-metas-filas">
@@ -249,6 +236,45 @@
                                         Inactivo
                                     </span>
                                 @endif
+                            </td>
+
+                            {{-- Acciones --}}
+                            <td class="px-5 py-3.5 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button
+                                        type="button"
+                                        data-accion="editar"
+                                        class="rounded-lg p-1.5 text-[#64748B] hover:bg-[#F1F5F9] hover:text-brand-950 transition-colors"
+                                        title="Editar indicador"
+                                        aria-label="Editar indicador {{ $indicador->codigo }}"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+
+                                    <form
+                                        method="POST"
+                                        action="{{ route('iaaps-metas.destroy', $indicador) }}"
+                                        class="inline form-eliminar"
+                                        data-swal-title="¿Eliminar indicador {{ $indicador->codigo }}?"
+                                        data-swal-text="¿Confirmas que deseas eliminar permanentemente “{{ $indicador->nombre }}”? Esta acción eliminará también sus mediciones asociadas."
+                                        data-swal-confirm="Sí, eliminar"
+                                    >
+                                        @csrf
+                                        @method('DELETE')
+                                        <button
+                                            type="submit"
+                                            class="rounded-lg p-1.5 text-[#94A3B8] hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                                            title="Eliminar indicador"
+                                            aria-label="Eliminar indicador {{ $indicador->codigo }}"
+                                        >
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
 

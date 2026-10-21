@@ -185,6 +185,6 @@ test('el filtro por establecimiento funciona en el centro de mando', function ()
         ->get(route('centro-mando', ['establecimiento_id' => $this->establecimiento2->id]));
 
     $response->assertOk()
-        ->assertSee('No hay mediciones registradas para este periodo y filtros')
+        ->assertSee('Sin mediciones registradas para graficar en este periodo')
         ->assertSee('CESFAM San Vicente');
 });

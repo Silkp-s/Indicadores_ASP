@@ -314,7 +314,14 @@
                                     </form>
 
                                     {{-- Botón Eliminar --}}
-                                    <form method="POST" action="{{ route('establecimientos.destroy', $est) }}" class="inline" onsubmit="return confirm('¿Confirmas que deseas eliminar el establecimiento “{{ $est->nombre }}”? Esta acción no se puede deshacer.')">
+                                    <form
+                                        method="POST"
+                                        action="{{ route('establecimientos.destroy', $est) }}"
+                                        class="inline form-eliminar"
+                                        data-swal-title="¿Eliminar establecimiento?"
+                                        data-swal-text="¿Confirmas que deseas eliminar el establecimiento “{{ $est->nombre }}”? Esta acción no se puede deshacer."
+                                        data-swal-confirm="Sí, eliminar"
+                                    >
                                         @csrf
                                         @method('DELETE')
                                         <button

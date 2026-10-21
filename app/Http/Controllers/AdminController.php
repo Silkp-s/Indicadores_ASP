@@ -197,7 +197,8 @@ class AdminController extends Controller
     public function destroy(User $user): RedirectResponse
     {
         if ($user->id === auth()->id()) {
-            return back()->withErrors(['user' => 'No puedes eliminar tu propia cuenta de administrador.']);
+            return back()->withErrors(['user' => 'No puedes eliminar tu propia cuenta de administrador.'])
+                ->with('error', 'No puedes eliminar tu propia cuenta de administrador.');
         }
 
         $name = $user->name;

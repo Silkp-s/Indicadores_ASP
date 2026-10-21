@@ -17,7 +17,12 @@ class RedirectIfNotAdmin
     public function handle(Request $request, Closure $next): Response
     {
         if (Auth::check() && ! Auth::user()->hasRole('Admin')) {
-            return redirect()->route('centro-mando');
+            if ($request->expectsJson()) {
+                abort(403, 'Acceso denegado: Se requieren permisos de Administrador.');
+            }
+
+            return redirect()->route('centro-mando')
+                ->with('error', 'Acceso denegado');
         }
 
         return $next($request);

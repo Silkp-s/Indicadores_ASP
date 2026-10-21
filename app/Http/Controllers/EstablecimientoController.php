@@ -91,7 +91,7 @@ class EstablecimientoController extends Controller
         if ($conteoMedidas > 0) {
             return back()->withErrors([
                 'establecimiento' => "No se puede eliminar “{$establecimiento->nombre}” porque cuenta con {$conteoMedidas} mediciones registradas en el sistema. Puedes desactivarlo para que no figure en nuevas operaciones.",
-            ]);
+            ])->with('error', "No se puede eliminar “{$establecimiento->nombre}” porque cuenta con {$conteoMedidas} mediciones registradas en el sistema. Puedes desactivarlo para que no figure en nuevas operaciones.");
         }
 
         $nombre = $establecimiento->nombre;

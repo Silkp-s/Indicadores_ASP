@@ -290,15 +290,6 @@
             });
         });
 
-        // Confirmación antes de desactivar un indicador
-        document.addEventListener('submit', (evento) => {
-            const mensaje = evento.target.dataset.confirmar;
-
-            if (mensaje && ! window.confirm(mensaje)) {
-                evento.preventDefault();
-            }
-        });
-
         // Modales: al cerrar, el foco vuelve al botón que abrió el modal
         const abrir = (modal, origen) => {
             disparador = origen;

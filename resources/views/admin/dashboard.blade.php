@@ -239,8 +239,10 @@
                                                 <form
                                                     method="POST"
                                                     action="{{ route('admin.users.destroy', $user) }}"
-                                                    class="inline"
-                                                    onsubmit="return confirm('¿Confirmas que deseas eliminar permanentemente a “{{ $user->name }} {{ $user->apellido }}”?')"
+                                                    class="inline form-eliminar"
+                                                    data-swal-title="¿Eliminar usuario?"
+                                                    data-swal-text="¿Confirmas que deseas eliminar permanentemente a “{{ $user->name }} {{ $user->apellido }}”? Esta acción no se puede deshacer."
+                                                    data-swal-confirm="Sí, eliminar usuario"
                                                 >
                                                     @csrf
                                                     @method('DELETE')
@@ -473,8 +475,10 @@
                                             <form
                                                 method="POST"
                                                 action="{{ route('admin.indicadores.destroy', $ind) }}"
-                                                class="inline"
-                                                onsubmit="return confirm('¿Confirmas que deseas eliminar el indicador “{{ $ind->codigo }} · {{ $ind->nombre }}”?')"
+                                                class="inline form-eliminar"
+                                                data-swal-title="¿Eliminar indicador?"
+                                                data-swal-text="¿Confirmas que deseas eliminar el indicador “{{ $ind->codigo }} · {{ $ind->nombre }}”? Esta acción eliminará permanentemente todas sus mediciones registradas."
+                                                data-swal-confirm="Sí, eliminar"
                                             >
                                                 @csrf
                                                 @method('DELETE')
@@ -713,8 +717,10 @@
                                             <form
                                                 method="POST"
                                                 action="{{ route('admin.rem-mappings.destroy', $map) }}"
-                                                class="inline"
-                                                onsubmit="return confirm('¿Confirmas que deseas eliminar este mapeo de celda REM?')"
+                                                class="inline form-eliminar"
+                                                data-swal-title="¿Eliminar mapeo REM?"
+                                                data-swal-text="¿Confirmas que deseas eliminar este mapeo de celda para la hoja {{ $map->hoja }} celda {{ $map->celda_numerador }}?"
+                                                data-swal-confirm="Sí, eliminar mapeo"
                                             >
                                                 @csrf
                                                 @method('DELETE')
