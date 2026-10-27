@@ -46,11 +46,14 @@
     {{-- Marca y Botón Cerrar (móvil) --}}
     <div class="flex items-center justify-between px-5 py-6">
         <div class="flex items-center gap-2.5">
-
-            <div class="flex items-center gap-2">
-                <span class="text-[26px] font-bold leading-none tracking-tight text-white">DAS</span>
-                <span class="whitespace-nowrap text-[10.5px] leading-tight text-[#94A3B8]">Inteligencia Sanitaria<br>Talcahuano</span>
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-white p-1">
+                <img
+                    src="{{ asset('images/das-logo.png') }}"
+                    alt="DAS — Dirección de Administración de Salud"
+                    class="h-full w-full object-contain"
+                >
             </div>
+            <span class="whitespace-nowrap text-[10.5px] leading-tight text-[#94A3B8]">Inteligencia Sanitaria<br>Talcahuano</span>
         </div>
 
         {{-- Botón cerrar (móvil) --}}

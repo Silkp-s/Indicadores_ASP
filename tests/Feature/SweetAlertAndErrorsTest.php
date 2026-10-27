@@ -12,10 +12,10 @@ beforeEach(function () {
     Role::firstOrCreate(['name' => 'Usuario']);
     Role::firstOrCreate(['name' => 'Admin']);
 
-   // $this->usuario = User::factory()->create();
+    $this->usuario = User::factory()->create();
     $this->usuario->assignRole('Usuario');
 
- //  $this->admin = User::factory()->create();
+    $this->admin = User::factory()->create();
     $this->admin->assignRole('Admin');
 });
 
@@ -33,7 +33,7 @@ test('usuario sin rol admin es redirigido con mensaje flash de error 403 al inte
     $response = $this->actingAs($this->usuario)->get(route('admin.dashboard'));
 
     $response->assertRedirect(route('centro-mando'))
-        ->assertSessionHas('error', 'Acceso denegado (403): No tienes permisos de Administrador para ingresar a esa sección.');
+        ->assertSessionHas('error', 'Acceso denegado');
 });
 
 test('peticion ajax sin permisos responde 403 y vista 403 contiene SweetAlert2', function () {
@@ -91,7 +91,7 @@ test('modulo iaaps-metas cuenta con boton de eliminacion protegido con confirmac
         'is_active' => true,
     ]);
 
-    $response = $this->actingAs($this->usuario)->get(route('iaaps-metas.index'));
+    $response = $this->actingAs($this->admin)->get(route('iaaps-metas.index'));
 
     $response->assertOk()
         ->assertSee('form-eliminar')

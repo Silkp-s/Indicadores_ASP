@@ -4,11 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Establecimiento;
 use App\Models\IndicadorMedida;
+use App\Services\ProyeccionEstadisticaService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CentroMandoController extends Controller
 {
+    public function __construct(
+        protected ProyeccionEstadisticaService $proyeccionService
+    ) {}
+
     /**
      * Muestra el Dashboard Ejecutivo comunal con gráficos, KPIs y los indicadores principales/críticos del momento.
      */
@@ -180,6 +185,25 @@ class CentroMandoController extends Controller
             'labels' => ['Metas Sanitarias (Ley 19.813)', 'IAAPS 2025'],
         ];
 
+        // 7. Motor de Proyección Estadística (Regresión Lineal Simple y Media Móvil)
+        $estFiltro = ($request->filled('establecimiento_id') && $request->input('establecimiento_id') !== 'todos')
+            ? (int) $request->input('establecimiento_id')
+            : null;
+        $tipoFiltro = ($request->filled('tipo') && $request->input('tipo') !== 'todos')
+            ? $request->input('tipo')
+            : null;
+        $qFiltro = $request->filled('q') ? $request->input('q') : null;
+        $estadoFiltro = $request->input('estado', 'todos');
+
+        $proyecciones = $this->proyeccionService->obtenerProyeccionesDashboard(
+            $año,
+            $mes,
+            $estFiltro,
+            $tipoFiltro,
+            $qFiltro,
+            $estadoFiltro
+        );
+
         $nombreMesActual = $mesesNombres[$mes] ?? "Mes {$mes}";
 
         return view('centro-mando.index', [
@@ -203,6 +227,7 @@ class CentroMandoController extends Controller
             'chartBarras' => $chartBarras,
             'chartDonut' => $chartDonut,
             'chartComparativa' => $chartComparativa,
+            'proyecciones' => $proyecciones,
             'filtros' => [
                 'periodo' => $periodoSeleccionado,
                 'establecimiento_id' => $request->input('establecimiento_id', 'todos'),

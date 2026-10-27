@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'IAAPS y Metas')
-@section('page-title', 'Módulo 2 · IAAPS y Metas Sanitarias')
+@section('page-title','IAAPS y Metas Sanitarias')
 @section('page-subtitle', 'Mantenedor de indicadores IAAPS y Metas Sanitarias con desglose por establecimiento')
 
 @section('content')
@@ -238,7 +238,7 @@
                                 @endif
                             </td>
 
-                            {{-- Acciones --}}
+                            {{-- Acciones (Editar y Eliminar) --}}
                             <td class="px-5 py-3.5 text-right whitespace-nowrap" onclick="event.stopPropagation()">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button
@@ -246,28 +246,25 @@
                                         data-accion="editar"
                                         class="rounded-lg p-1.5 text-[#64748B] hover:bg-[#F1F5F9] hover:text-brand-950 transition-colors"
                                         title="Editar indicador"
-                                        aria-label="Editar indicador {{ $indicador->codigo }}"
                                     >
                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                         </svg>
                                     </button>
-
                                     <form
                                         method="POST"
                                         action="{{ route('iaaps-metas.destroy', $indicador) }}"
                                         class="inline form-eliminar"
                                         data-swal-title="¿Eliminar indicador {{ $indicador->codigo }}?"
-                                        data-swal-text="¿Confirmas que deseas eliminar permanentemente “{{ $indicador->nombre }}”? Esta acción eliminará también sus mediciones asociadas."
+                                        data-swal-text="Esta acción eliminará el indicador y sus configuraciones asociadas."
                                         data-swal-confirm="Sí, eliminar"
                                     >
                                         @csrf
                                         @method('DELETE')
                                         <button
                                             type="submit"
-                                            class="rounded-lg p-1.5 text-[#94A3B8] hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                                            class="rounded-lg p-1.5 text-status-bad-fg hover:bg-status-bad-bg/60 transition-colors"
                                             title="Eliminar indicador"
-                                            aria-label="Eliminar indicador {{ $indicador->codigo }}"
                                         >
                                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -276,11 +273,12 @@
                                     </form>
                                 </div>
                             </td>
+
                         </tr>
 
                         {{-- Fila Desplegable (Acordeón con Numeradores, Denominadores y Cumplimiento de cada establecimiento) --}}
                         <tr id="detalle-indicador-{{ $indicador->id }}" class="hidden bg-[#F8FAFC] border-b-2 border-brand-800/10">
-                            <td colspan="8" class="p-4 sm:p-6">
+                            <td colspan="9" class="p-4 sm:p-6">
                                 <div class="rounded-xl border border-[#CBD5E1] bg-white p-4 sm:p-5 shadow-xs space-y-4">
                                     
                                     {{-- Encabezado del Acordeón con Definición de Fórmulas y Resumen Comunal --}}
@@ -474,7 +472,7 @@
 
                     @empty
                         <tr>
-                            <td colspan="8" class="px-6 py-12 text-center text-sm text-[#64748B]">
+                            <td colspan="9" class="px-6 py-12 text-center text-sm text-[#64748B]">
                                 <svg class="mx-auto h-10 w-10 text-[#CBD5E1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                 </svg>

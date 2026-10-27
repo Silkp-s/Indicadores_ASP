@@ -208,14 +208,14 @@
             <div class="mt-3 flex items-center justify-between text-sm">
                 <div class="flex items-center gap-1.5">
                     <span class="h-2.5 w-2.5 rounded-full bg-accent-500"></span>
-                    <span class="text-xs text-[#475569]">Metas Ley 19.813:</span>
+                    <span class="text-xs text-[#475569]">Metas Sanitarias:</span>
                 </div>
                 <span class="font-bold text-brand-950">{{ $metasCount }}</span>
             </div>
             <div class="mt-1.5 flex items-center justify-between text-sm">
                 <div class="flex items-center gap-1.5">
                     <span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
-                    <span class="text-xs text-[#475569]">IAAPS 2025:</span>
+                    <span class="text-xs text-[#475569]">IAAPS:</span>
                 </div>
                 <span class="font-bold text-brand-950">{{ $iaapsCount }}</span>
             </div>
@@ -336,6 +336,282 @@
                 </div>
             </div>
         @endif
+    </div>
+
+    {{-- MOTOR DE PROYECCIÓN ESTADÍSTICA PREDICTIVA · CIERRE ANUAL (MES 12) --}}
+    <div class="rounded-xl border border-indigo-200/80 bg-gradient-to-br from-white via-white to-indigo-50/40 p-6 shadow-xs space-y-6">
+        
+        {{-- Encabezado del Motor Predictivo --}}
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-indigo-100 pb-4">
+            <div class="flex items-center gap-3">
+                <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                </span>
+                <div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h2 class="text-lg font-bold text-brand-950">Motor de Proyección Estadística · Estimación de Cierre Anual</h2>
+                        <span class="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700 border border-indigo-200">
+                            Regresión Lineal Simple + Media Móvil (SMA-3)
+                        </span>
+                        <span class="rounded-full bg-brand-50 px-2.5 py-0.5 text-[11px] font-semibold text-brand-800 border border-brand-200">
+                            Horizonte: Mes 12 (Diciembre {{ $año }})
+                        </span>
+                    </div>
+                    <p class="text-xs text-[#64748B]">
+                        Anticipa el cumplimiento anual de la cartera según la tasa de cambio y tendencia histórica observada hasta {{ $mesNombre }} {{ $año }}.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs">
+                <span class="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#475569] border border-[#CBD5E1] shadow-2xs">
+                    <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+                    Corte actual: <strong>{{ $mesNombre }} (Mes {{ $mes }})</strong>
+                </span>
+            </div>
+        </div>
+
+        {{-- Tarjetas KPI de Pronóstico Anual --}}
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {{-- KPI 1: Tasa de Éxito Anual Proyectada --}}
+            <div class="rounded-lg border border-indigo-100 bg-white p-4 shadow-2xs">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-[#64748B]">Éxito Proyectado (Meta Lograda)</span>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span class="text-2xl font-extrabold text-indigo-700">{{ $proyecciones['resumen']['tasa_exito_proyectada'] ?? 0 }}%</span>
+                </div>
+                <p class="mt-1 text-[11px] text-[#64748B]">
+                    {{ $proyecciones['resumen']['cumpliran_count'] ?? 0 }} de {{ $proyecciones['resumen']['total_evaluados'] ?? 0 }} indicadores sobre meta
+                </p>
+            </div>
+
+            {{-- KPI 2: Cumplirán Meta --}}
+            <div class="rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] p-4 shadow-2xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-[#15803D]">Cumplirán Meta</span>
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-[#DCFCE7] text-[#16A34A] text-xs">✓</span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span class="text-2xl font-extrabold text-[#15803D]">{{ $proyecciones['resumen']['cumpliran_count'] ?? 0 }}</span>
+                    <span class="text-xs text-[#15803D] font-medium">indicadores</span>
+                </div>
+                <p class="mt-1 text-[11px] text-[#16A34A]">Proyectan alcanzar o superar el 100%</p>
+            </div>
+
+            {{-- KPI 3: En Riesgo al Cierre --}}
+            <div class="rounded-lg border border-[#FED7AA] bg-[#FFFBEB] p-4 shadow-2xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-[#B45309]">En Riesgo al Cierre</span>
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-[#FEF3C7] text-[#D97706] text-xs font-bold">!</span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span class="text-2xl font-extrabold text-[#B45309]">{{ $proyecciones['resumen']['en_riesgo_count'] ?? 0 }}</span>
+                    <span class="text-xs text-[#B45309] font-medium">indicadores</span>
+                </div>
+                <p class="mt-1 text-[11px] text-[#D97706]">Cierre proyectado entre 85% y 99%</p>
+            </div>
+
+            {{-- KPI 4: Críticos al Cierre --}}
+            <div class="rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-4 shadow-2xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-[#B91C1C]">Críticos al Cierre</span>
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-[#FEE2E2] text-[#DC2626] text-xs font-bold">✕</span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span class="text-2xl font-extrabold text-[#B91C1C]">{{ $proyecciones['resumen']['criticos_count'] ?? 0 }}</span>
+                    <span class="text-xs text-[#B91C1C] font-medium">indicadores</span>
+                </div>
+                <p class="mt-1 text-[11px] text-[#DC2626]">Déficit proyectado severo (< 85%)</p>
+            </div>
+
+            {{-- KPI 5: Cumplimiento Promedio Proyectado --}}
+            <div class="rounded-lg border border-[#E2E8F0] bg-white p-4 shadow-2xs">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-[#64748B]">Cierre Promedio Anual</span>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span class="text-2xl font-extrabold text-brand-950">{{ $proyecciones['resumen']['cumplimiento_promedio_proyectado'] ?? 0 }}%</span>
+                </div>
+                <p class="mt-1 text-[11px] text-[#64748B]">Estimación comunal al mes 12</p>
+            </div>
+        </div>
+
+        {{-- Gráfico Interactivo de Trayectoria Anual --}}
+        <div class="rounded-xl border border-indigo-100 bg-white p-5 shadow-2xs">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <h3 class="text-sm font-bold text-brand-950 flex items-center gap-2">
+                        <span>Trayectoria Anual: Avance Real vs Proyección Estadística a Diciembre</span>
+                    </h3>
+                    <p class="text-xs text-[#64748B]">
+                        Comparación de la senda real observada (meses 1..{{ $mes }}) y las proyecciones de Regresión Lineal y Media Móvil (meses {{ min(12, $mes + 1) }}..12).
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3 text-[11px] font-medium text-[#475569]">
+                    <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-[#2f6fed]"></span> Real Observado</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-[#8B5CF6]"></span> Regresión Lineal</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-[#06B6D4]"></span> Media Móvil (SMA-3)</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-[#10B981]"></span> Meta Objetivo</span>
+                </div>
+            </div>
+            <div id="chart-proyeccion-anual" class="min-h-[320px]"></div>
+        </div>
+
+        {{-- Detalle de Indicadores con Proyección Estadística --}}
+        <div class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-2xs">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#F1F5F9] pb-4">
+                <div>
+                    <h3 class="text-sm font-bold text-brand-950">Detalle de Indicadores · Proyección y Anticipación Anual</h3>
+                    <p class="text-xs text-[#64748B]">Tendencia mensual, pendiente (ritmo), cálculo de modelos y pronóstico al cierre del ejercicio.</p>
+                </div>
+
+                {{-- Filtro rápido de pestañas --}}
+                <div class="flex items-center gap-1.5 rounded-lg bg-[#F1F5F9] p-1 text-xs font-semibold">
+                    <button type="button" onclick="filtrarProyecciones('todos', this)" class="btn-tab-proy rounded-md bg-white px-3 py-1 text-brand-950 shadow-2xs">
+                        Todos ({{ count($proyecciones['indicadores_proyectados']) }})
+                    </button>
+                    <button type="button" onclick="filtrarProyecciones('Crítico', this)" class="btn-tab-proy rounded-md px-3 py-1 text-[#DC2626] hover:bg-white/80">
+                        Críticos ({{ $proyecciones['resumen']['criticos_count'] }})
+                    </button>
+                    <button type="button" onclick="filtrarProyecciones('En Riesgo', this)" class="btn-tab-proy rounded-md px-3 py-1 text-[#D97706] hover:bg-white/80">
+                        En Riesgo ({{ $proyecciones['resumen']['en_riesgo_count'] }})
+                    </button>
+                    <button type="button" onclick="filtrarProyecciones('Cumplirá', this)" class="btn-tab-proy rounded-md px-3 py-1 text-[#16A34A] hover:bg-white/80">
+                        Cumplirán ({{ $proyecciones['resumen']['cumpliran_count'] }})
+                    </button>
+                </div>
+            </div>
+
+            {{-- Tabla de Indicadores --}}
+            <div class="mt-4 overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-[#E2E8F0] text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                            <th class="py-3 px-3">Indicador</th>
+                            <th class="py-3 px-3">Actual (Mes {{ $mes }})</th>
+                            <th class="py-3 px-3">Ritmo Mensual</th>
+                            <th class="py-3 px-3">Reg. Lineal</th>
+                            <th class="py-3 px-3">Media Móvil</th>
+                            <th class="py-3 px-3">Pronóstico Cierre</th>
+                            <th class="py-3 px-3">Meta Anual</th>
+                            <th class="py-3 px-3">Diagnóstico / Alerta</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#F1F5F9]" id="tabla-proyecciones-body">
+                        @forelse ($proyecciones['indicadores_proyectados'] as $p)
+                            <tr class="fila-proyeccion hover:bg-[#F8FAFC] transition-colors" data-estado="{{ $p['estado_anticipado'] }}">
+                                <td class="py-3 px-3 max-w-[240px]">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="font-mono font-bold text-brand-950">{{ $p['codigo'] }}</span>
+                                        <span @class([
+                                            'rounded px-1.5 py-0.5 text-[10px] font-semibold border',
+                                            'bg-blue-50 text-blue-700 border-blue-200' => $p['tipo'] === 'Meta Sanitaria',
+                                            'bg-amber-50 text-amber-800 border-amber-200' => $p['tipo'] === 'IAAPS',
+                                            'bg-gray-50 text-gray-700 border-gray-200' => !in_array($p['tipo'], ['Meta Sanitaria', 'IAAPS']),
+                                        ])>
+                                            {{ $p['tipo'] }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-0.5 text-[11px] text-[#475569] line-clamp-1" title="{{ $p['nombre'] }}">
+                                        {{ $p['nombre'] }}
+                                    </p>
+                                </td>
+                                <td class="py-3 px-3 font-semibold text-brand-950">
+                                    {{ number_format($p['cumplimiento_actual'], 1) }}%
+                                </td>
+                                <td class="py-3 px-3">
+                                    @php $pend = $p['regresion']['pendiente']; @endphp
+                                    @if ($pend > 0.25)
+                                        <span class="inline-flex items-center gap-1 font-semibold text-[#16A34A]" title="Tendencia favorable al alza">
+                                            ↗ +{{ number_format($pend, 1) }}%/m
+                                        </span>
+                                    @elseif ($pend < -0.25)
+                                        <span class="inline-flex items-center gap-1 font-semibold text-[#DC2626]" title="Tendencia desfavorable a la baja">
+                                            ↘ {{ number_format($pend, 1) }}%/m
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 text-[#64748B]" title="Tendencia estable">
+                                            → {{ number_format($pend, 1) }}%/m
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-3 font-mono text-[#475569]">
+                                    {{ number_format($p['regresion']['proyeccion_mes_12'], 1) }}%
+                                    <span class="block text-[9px] text-[#94A3B8]">R²: {{ number_format($p['regresion']['r2'] * 100, 0) }}%</span>
+                                </td>
+                                <td class="py-3 px-3 font-mono text-[#475569]">
+                                    {{ number_format($p['media_movil']['proyeccion_mes_12'], 1) }}%
+                                    <span class="block text-[9px] text-[#94A3B8]">SMA: {{ number_format($p['media_movil']['sma_reciente'], 1) }}%</span>
+                                </td>
+                                <td class="py-3 px-3">
+                                    <div class="flex items-center gap-1.5">
+                                        <span @class([
+                                            'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold border',
+                                            'bg-[#E7F9EF] text-[#16A34A] border-[#BBF7D0]' => $p['estado_anticipado'] === 'Cumplirá',
+                                            'bg-[#FFF4E5] text-[#D97706] border-[#FED7AA]' => $p['estado_anticipado'] === 'En Riesgo',
+                                            'bg-[#FDEDEC] text-[#DC2626] border-[#FECACA]' => $p['estado_anticipado'] === 'Crítico',
+                                        ])>
+                                            {{ $p['estado_anticipado'] }}: {{ number_format($p['proyeccion_anual'], 1) }}%
+                                        </span>
+                                    </div>
+                                    <span class="block text-[10px] text-[#64748B] mt-0.5">
+                                        Brecha: {{ $p['brecha_proyectada'] >= 0 ? '+' : '' }}{{ number_format($p['brecha_proyectada'], 1) }}%
+                                    </span>
+                                </td>
+                                <td class="py-3 px-3 font-semibold text-brand-950">
+                                    {{ number_format($p['target'], 1) }}%
+                                </td>
+                                <td class="py-3 px-3 max-w-[260px]">
+                                    <p class="text-[11px] text-[#475569] leading-snug">
+                                        {{ $p['alerta_ejecutiva'] }}
+                                    </p>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="8" class="py-8 text-center text-sm text-[#94A3B8]">
+                                    No se encontraron indicadores con mediciones históricas en este periodo.
+                                </td>
+                            </tr>
+                        @endforelse
+                        <tr id="proy-fila-vacia" class="hidden">
+                            <td colspan="8" class="py-8 text-center text-sm text-[#94A3B8]">
+                                No se encontraron indicadores para el filtro seleccionado.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- Paginación / Tabulación en 5 de la Tabla de Proyecciones --}}
+            <div id="proyecciones-paginacion-container" class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#F1F5F9] pt-4 text-xs text-[#64748B]">
+                <div id="proyecciones-paginacion-info">
+                    Mostrando <span id="proy-desde" class="font-bold text-brand-950">0</span> a <span id="proy-hasta" class="font-bold text-brand-950">0</span> de <span id="proy-total" class="font-bold text-brand-950">{{ count($proyecciones['indicadores_proyectados']) }}</span> indicadores (tabulados de 5 en 5)
+                </div>
+
+                <div class="flex items-center gap-1.5" id="proyecciones-paginacion-botones">
+                    <button
+                        type="button"
+                        id="btn-proy-prev"
+                        onclick="cambiarPaginaProyeccion(-1)"
+                        class="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-brand-950 shadow-2xs hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Anterior
+                    </button>
+
+                    <div id="proyecciones-paginas-numeros" class="flex items-center gap-1"></div>
+
+                    <button
+                        type="button"
+                        id="btn-proy-next"
+                        onclick="cambiarPaginaProyeccion(1)"
+                        class="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-brand-950 shadow-2xs hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Siguiente
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     {{-- GRÁFICOS EJECUTIVOS APEXCHARTS --}}
@@ -510,6 +786,206 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
     }
+
+    // 3. Gráfico de Proyección Anual (Regresión Lineal Simple y Media Móvil)
+    const chartProyeccionData = @json($proyecciones['chart_anual'] ?? null);
+
+    if (document.querySelector("#chart-proyeccion-anual") && chartProyeccionData) {
+        const proyeccionOptions = {
+            series: [
+                {
+                    name: 'Avance Real Observado (%)',
+                    type: 'area',
+                    data: chartProyeccionData.series_real
+                },
+                {
+                    name: 'Proyección Regresión Lineal (%)',
+                    type: 'line',
+                    data: chartProyeccionData.series_regresion
+                },
+                {
+                    name: 'Proyección Media Móvil (SMA-3) (%)',
+                    type: 'line',
+                    data: chartProyeccionData.series_media_movil
+                },
+                {
+                    name: 'Meta Objetivo Promedio (%)',
+                    type: 'line',
+                    data: chartProyeccionData.series_target
+                }
+            ],
+            chart: {
+                height: 320,
+                type: 'line',
+                toolbar: { show: false },
+                fontFamily: 'inherit'
+            },
+            colors: ['#2f6fed', '#8B5CF6', '#06B6D4', '#10B981'],
+            stroke: {
+                width: [3, 2.5, 2.5, 2],
+                curve: ['smooth', 'straight', 'smooth', 'straight'],
+                dashArray: [0, 5, 3, 4]
+            },
+            fill: {
+                type: ['gradient', 'solid', 'solid', 'solid'],
+                gradient: {
+                    shade: 'light',
+                    type: 'vertical',
+                    shadeIntensity: 0.3,
+                    opacityFrom: 0.35,
+                    opacityTo: 0.05,
+                    stops: [0, 90, 100]
+                }
+            },
+            markers: {
+                size: [4, 4, 4, 0],
+                strokeWidth: 2,
+                hover: { size: 6 }
+            },
+            xaxis: {
+                categories: chartProyeccionData.categories,
+                labels: {
+                    style: { colors: '#64748B', fontWeight: 600 }
+                }
+            },
+            yaxis: {
+                title: { text: 'Cumplimiento (%)' },
+                labels: {
+                    formatter: (val) => val !== null && val !== undefined ? val.toFixed(0) + '%' : ''
+                }
+            },
+            tooltip: {
+                shared: true,
+                intersect: false,
+                y: {
+                    formatter: (val) => val !== null && val !== undefined ? val.toFixed(1) + '%' : 'N/A'
+                }
+            },
+            legend: {
+                position: 'top',
+                horizontalAlign: 'right'
+            }
+        };
+
+        const chartProyeccion = new ApexCharts(document.querySelector("#chart-proyeccion-anual"), proyeccionOptions);
+        chartProyeccion.render();
+    }
+
+    // 4. Tabulación y Paginación en 5 de la Tabla de Proyecciones
+    const PROY_POR_PAGINA = 5;
+    let proyPaginaActual = 1;
+    let proyEstadoActivo = 'todos';
+
+    function renderizarPaginacionProyecciones() {
+        const todasFilas = Array.from(document.querySelectorAll('.fila-proyeccion'));
+        if (todasFilas.length === 0) {
+            const cont = document.querySelector('#proyecciones-paginacion-container');
+            if (cont) cont.style.display = 'none';
+            return;
+        }
+
+        // Filtrar filas según el estado activo en las pestañas
+        const filasFiltradas = todasFilas.filter(row => {
+            return proyEstadoActivo === 'todos' || row.dataset.estado === proyEstadoActivo;
+        });
+
+        const totalFiltradas = filasFiltradas.length;
+        const totalPaginas = Math.max(1, Math.ceil(totalFiltradas / PROY_POR_PAGINA));
+
+        if (proyPaginaActual > totalPaginas) {
+            proyPaginaActual = totalPaginas;
+        }
+        if (proyPaginaActual < 1) {
+            proyPaginaActual = 1;
+        }
+
+        // Mostrar u ocultar fila de estado vacío
+        const filaVacia = document.querySelector('#proy-fila-vacia');
+        if (filaVacia) {
+            filaVacia.classList.toggle('hidden', totalFiltradas > 0);
+        }
+
+        // Ocultar todas las filas y mostrar solo las correspondientes a la página activa
+        const inicioIndice = (proyPaginaActual - 1) * PROY_POR_PAGINA;
+        const finIndice = inicioIndice + PROY_POR_PAGINA;
+
+        todasFilas.forEach(row => {
+            row.style.display = 'none';
+        });
+
+        filasFiltradas.forEach((row, idx) => {
+            if (idx >= inicioIndice && idx < finIndice) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Actualizar información textual de paginación
+        const elDesde = document.querySelector('#proy-desde');
+        const elHasta = document.querySelector('#proy-hasta');
+        const elTotal = document.querySelector('#proy-total');
+
+        if (elDesde && elHasta && elTotal) {
+            const desdeNum = totalFiltradas > 0 ? inicioIndice + 1 : 0;
+            const hastaNum = Math.min(finIndice, totalFiltradas);
+            elDesde.textContent = desdeNum;
+            elHasta.textContent = hastaNum;
+            elTotal.textContent = totalFiltradas;
+        }
+
+        // Estado de botones Anterior / Siguiente
+        const btnPrev = document.querySelector('#btn-proy-prev');
+        const btnNext = document.querySelector('#btn-proy-next');
+
+        if (btnPrev) btnPrev.disabled = (proyPaginaActual <= 1);
+        if (btnNext) btnNext.disabled = (proyPaginaActual >= totalPaginas || totalFiltradas === 0);
+
+        // Renderizar números de página
+        const contenedorNumeros = document.querySelector('#proyecciones-paginas-numeros');
+        if (contenedorNumeros) {
+            contenedorNumeros.innerHTML = '';
+
+            for (let i = 1; i <= totalPaginas; i++) {
+                const btnNum = document.createElement('button');
+                btnNum.type = 'button';
+                btnNum.textContent = i;
+                btnNum.onclick = () => window.irAPaginaProyeccion(i);
+
+                if (i === proyPaginaActual) {
+                    btnNum.className = 'h-7 w-7 rounded-lg bg-indigo-600 text-xs font-bold text-white shadow-2xs flex items-center justify-center';
+                } else {
+                    btnNum.className = 'h-7 w-7 rounded-lg border border-[#CBD5E1] bg-white text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] shadow-2xs flex items-center justify-center';
+                }
+
+                contenedorNumeros.appendChild(btnNum);
+            }
+        }
+    }
+
+    window.cambiarPaginaProyeccion = function(delta) {
+        proyPaginaActual += delta;
+        renderizarPaginacionProyecciones();
+    };
+
+    window.irAPaginaProyeccion = function(numPagina) {
+        proyPaginaActual = numPagina;
+        renderizarPaginacionProyecciones();
+    };
+
+    window.filtrarProyecciones = function(estado, btn) {
+        document.querySelectorAll('.btn-tab-proy').forEach(b => {
+            b.classList.remove('bg-white', 'shadow-2xs');
+        });
+        btn.classList.add('bg-white', 'shadow-2xs');
+
+        proyEstadoActivo = estado;
+        proyPaginaActual = 1;
+        renderizarPaginacionProyecciones();
+    };
+
+    // Inicializar la tabulación en 5 inmediatamente
+    renderizarPaginacionProyecciones();
 });
 </script>
 @endpush

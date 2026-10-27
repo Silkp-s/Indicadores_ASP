@@ -19,23 +19,27 @@
         </svg>
 
         <div class="relative flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-md bg-accent-500 text-sm font-semibold text-brand-950">
-                DAS
+            <div class="flex h-20 w-20 shrink-0 items-center justify-center rounded-md bg-white p-2 shadow-sm">
+                <img
+                    src="{{ asset('images/das-logo.png') }}"
+                    alt="DAS — Dirección de Administración de Salud"
+                    class="h-full w-full object-contain"
+                >
             </div>
-            <span class="text-sm font-semibold tracking-wide text-white">Gestión Social</span>
+            <span class="text-sm font-semibold tracking-wide text-white">Adminitración de Salud</span>
         </div>
 
         <div class="relative max-w-md">
             <p class="text-2xl font-medium leading-snug text-white">
-                Un solo lugar para administrar planillas, beneficiarios y ayudas sociales.
+                Un solo lugar para administrar planillas y datos.
             </p>
             <p class="mt-4 text-sm text-[#9FB5AC]">
-                Acceso restringido a personal autorizado del Departamento de Acción Social.
+                Acceso restringido a personal autorizado de la Dirección de Administración de Salud.
             </p>
         </div>
 
         <p class="relative text-xs text-[#6F8981]">
-            © {{ date('Y') }} Departamento de Acción Social
+            © {{ date('Y') }} Dirección de Administración de Salud
         </p>
     </div>
 
@@ -44,8 +48,12 @@
         <div class="w-full max-w-sm">
 
             <div class="mb-8 lg:hidden">
-                <div class="flex h-10 w-10 items-center justify-center rounded-md bg-brand-950 text-sm font-semibold text-white">
-                    DAS
+                <div class="flex h-16 w-16 items-center justify-center rounded-md border border-[#E1E7E4] bg-white p-1.5">
+                    <img
+                        src="{{ asset('images/das-logo.png') }}"
+                        alt="DAS — Dirección de Administración de Salud"
+                        class="h-full w-full object-contain"
+                    >
                 </div>
             </div>
 

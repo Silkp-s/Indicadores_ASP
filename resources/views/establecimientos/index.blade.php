@@ -2,7 +2,7 @@
 @use('App\Models\Establecimiento')
 
 @section('title', 'Establecimientos de Salud')
-@section('page-title', 'Módulo · Establecimientos de Salud')
+@section('page-title', 'Establecimientos de Salud')
 @section('page-subtitle', 'Administración de recintos de la red comunal')
 
 @section('content')

@@ -44,6 +44,22 @@
                     </svg>
                 </button>
 
+                {{-- Formulario de búsqueda global en catálogo --}}
+                <form action="{{ route('indicadores.index') }}" method="GET" class="relative hidden sm:block w-full max-w-md">
+                    <input type="hidden" name="estado" value="todos">
+                    <div class="relative">
+                        <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            name="q"
+                            placeholder="Buscar en el catálogo de indicadores..."
+                            class="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] py-1.5 pl-9 pr-3 text-sm text-brand-950 placeholder:text-[#94A3B8] focus:border-accent-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-accent-500"
+                        >
+                    </div>
+                </form>
+
                 <div class="ml-auto flex items-center gap-2 sm:gap-4 lg:gap-5 shrink-0">
 
                     <button type="button" class="hidden sm:inline-flex text-[#64748B] hover:text-brand-950" title="Mensajes" aria-label="Mensajes">

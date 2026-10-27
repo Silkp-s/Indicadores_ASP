@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Importación Masiva REM')
-@section('page-title', 'Módulo de Importación REM')
+@section('page-title', 'Importación REM')
 @section('page-subtitle', 'Procesamiento de planillas oficiales MINSAL (Serie A / Serie P) y cálculo de Metas Sanitarias e IAAPS')
 
 @section('content')
