@@ -424,6 +424,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let chartBarras = null;
     let chartDonut = null;
 
+    // Escapa texto de origen externo (planillas, BD) antes de insertarlo en plantillas HTML.
+    const esc = (valor) => String(valor ?? '').replace(/[&<>"']/g, (caracter) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[caracter]));
+
     // Manejo de drag and drop
     ['dragenter', 'dragover'].forEach(eventName => {
         dropzone.addEventListener(eventName, (e) => {
@@ -537,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </svg>
                     </div>
                     <div class="min-w-0 flex-1 leading-tight">
-                        <p class="truncate text-xs font-bold text-brand-950" title="${file.name}">${file.name}</p>
+                        <p class="truncate text-xs font-bold text-brand-950" title="${esc(file.name)}">${esc(file.name)}</p>
                         <div class="mt-1 flex items-center gap-2 text-[11px] text-[#64748B]">
                             <span>${sizeFormatted}</span>
                             ${seriePill}
@@ -651,13 +660,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const listHtml = data.grupos.map((g, idx) => `
             <div class="rounded-lg border border-[#CBD5E1] bg-white p-3 text-left mb-2 shadow-xs">
                 <div class="flex items-center justify-between">
-                    <h4 class="font-bold text-brand-950">${g.establecimiento.nombre}</h4>
-                    <span class="rounded bg-brand-100 text-brand-800 px-2 py-0.5 text-xs font-semibold">DEIS: ${g.establecimiento.codigo_deis || 'N/A'}</span>
+                    <h4 class="font-bold text-brand-950">${esc(g.establecimiento.nombre)}</h4>
+                    <span class="rounded bg-brand-100 text-brand-800 px-2 py-0.5 text-xs font-semibold">DEIS: ${esc(g.establecimiento.codigo_deis || 'N/A')}</span>
                 </div>
                 <div class="mt-1 text-xs text-[#64748B] flex flex-wrap items-center gap-2">
-                    <span>Periodo: <strong>${g.periodo.mes_nombre} ${g.periodo.año}</strong></span>
+                    <span>Periodo: <strong>${esc(g.periodo.mes_nombre)} ${esc(g.periodo.año)}</strong></span>
                     <span>&bull;</span>
-                    <span>Serie: <strong>${g.periodo.serie}</strong></span>
+                    <span>Serie: <strong>${esc(g.periodo.serie)}</strong></span>
                     <span>&bull;</span>
                     <span>Planillas: <strong>${g.archivos_procesados ? g.archivos_procesados.length : 1}</strong></span>
                     <span>&bull;</span>
@@ -738,8 +747,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modal de selección cuando el establecimiento no coincide en la BD
     async function manejarEstablecimientoNoEncontrado(data) {
         const optionsHtml = data.establecimientos_disponibles.map(e => {
-            const deis = e.codigo_deis ? ` (DEIS: ${e.codigo_deis})` : '';
-            return `<option value="${e.id}">${e.nombre}${deis}</option>`;
+            const deis = e.codigo_deis ? ` (DEIS: ${esc(e.codigo_deis)})` : '';
+            return `<option value="${esc(e.id)}">${esc(e.nombre)}${deis}</option>`;
         }).join('');
 
         const { value: selectedId, isConfirmed } = await Swal.fire({
@@ -749,8 +758,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="text-left text-sm text-[#475569] space-y-2">
                     <p>La planilla indica el recinto:</p>
                     <div class="rounded-lg bg-[#F8FAFC] border border-[#CBD5E1] p-3">
-                        <p class="font-bold text-brand-950">${data.detected.nombre}</p>
-                        <p class="text-xs text-[#64748B]">Código DEIS: <strong>${data.detected.codigo_deis}</strong> · Periodo: ${data.detected.mes_nombre} ${data.detected.año}</p>
+                        <p class="font-bold text-brand-950">${esc(data.detected.nombre)}</p>
+                        <p class="text-xs text-[#64748B]">Código DEIS: <strong>${esc(data.detected.codigo_deis)}</strong> · Periodo: ${esc(data.detected.mes_nombre)} ${esc(data.detected.año)}</p>
                     </div>
                     <p class="pt-2">Seleccione el establecimiento de la red correspondiente para vincular la importación:</p>
                     <select id="swal-est-select" class="w-full rounded-md border border-[#CBD5E1] p-2 text-sm text-brand-950 focus:outline-none focus:ring-2 focus:ring-accent-500">
@@ -781,8 +790,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Alerta introductoria explicativa
         const archivosCount = data.archivos_procesados ? data.archivos_procesados.length : 1;
         const archivosInfo = archivosCount > 1 
-            ? `Se consolidaron exitosamente los datos de <strong>${archivosCount} planillas REM (${data.periodo.serie})</strong> para <strong>${data.establecimiento.nombre}</strong>.`
-            : `Se detectaron exitosamente los numeradores del <strong>REM Serie ${data.periodo.serie}</strong> para <strong>${data.establecimiento.nombre}</strong>.`;
+            ? `Se consolidaron exitosamente los datos de <strong>${archivosCount} planillas REM (${esc(data.periodo.serie)})</strong> para <strong>${esc(data.establecimiento.nombre)}</strong>.`
+            : `Se detectaron exitosamente los numeradores del <strong>REM Serie ${esc(data.periodo.serie)}</strong> para <strong>${esc(data.establecimiento.nombre)}</strong>.`;
 
         const intro = await Swal.fire({
             icon: 'info',
@@ -939,8 +948,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const pillsHtml = archivosProcesados.map(a => 
                     `<span class="inline-flex items-center gap-1.5 rounded-md border border-[#B8D5FA] bg-white px-2.5 py-1 text-xs font-semibold text-brand-950 shadow-2xs">
                         <svg class="h-3.5 w-3.5 text-[#16A34A]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                        <span>${a.nombre}</span>
-                        <span class="rounded bg-blue-50 px-1 py-0.2 text-[10px] font-bold text-accent-700">${a.serie || 'REM'}</span>
+                        <span>${esc(a.nombre)}</span>
+                        <span class="rounded bg-blue-50 px-1 py-0.2 text-[10px] font-bold text-accent-700">${esc(a.serie || 'REM')}</span>
                     </span>`
                 ).join('');
                 archivosRow.innerHTML = `
@@ -1043,8 +1052,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 tr.className = 'hover:bg-[#F8FAFC] transition-colors';
                 tr.innerHTML = `
                     <td class="px-6 py-4">${tipoBadge}</td>
-                    <td class="px-6 py-4 font-mono font-bold text-brand-950">${m.codigo}</td>
-                    <td class="px-6 py-4 font-medium text-[#334155]">${m.nombre}</td>
+                    <td class="px-6 py-4 font-mono font-bold text-brand-950">${esc(m.codigo)}</td>
+                    <td class="px-6 py-4 font-medium text-[#334155]">${esc(m.nombre)}</td>
                     <td class="px-6 py-4 text-right font-mono text-[#334155]">${Number(m.numerador).toLocaleString('es-CL')}</td>
                     <td class="px-6 py-4 text-right font-mono text-[#334155]">${Number(m.denominador).toLocaleString('es-CL')}</td>
                     <td class="px-6 py-4 text-center">

@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -56,12 +57,21 @@ class ImportacionController extends Controller
     public function previsualizar(Request $request): JsonResponse
     {
         $request->validate([
-            'archivo' => ['nullable', 'file', 'max:35840'], // hasta 35MB
-            'archivos' => ['nullable', 'array'],
-            'archivos.*' => ['file', 'max:35840'],
+            'archivo' => ['nullable', 'file', 'max:35840', 'extensions:xlsx,xlsm'], // hasta 35MB
+            'archivos' => ['nullable', 'array', 'max:20'],
+            'archivos.*' => ['file', 'max:35840', 'extensions:xlsx,xlsm'],
             'establecimiento_id' => ['nullable', 'exists:establecimientos,id'],
             'tipo_indicadores' => ['nullable', 'string', 'in:todas,metas,iaaps'],
+        ], [
+            'archivo.extensions' => 'Solo se permiten planillas REM en formato .xlsx o .xlsm.',
+            'archivo.max' => 'Cada planilla no puede superar los 35 MB.',
+            'archivos.max' => 'No es posible procesar más de 20 planillas en una misma importación.',
+            'archivos.*.extensions' => 'Solo se permiten planillas REM en formato .xlsx o .xlsm.',
+            'archivos.*.max' => 'Cada planilla no puede superar los 35 MB.',
         ]);
+
+        // Las planillas se guardan solo mientras dura el procesamiento y se eliminan en el bloque finally.
+        $storedPaths = [];
 
         $uploadedFiles = [];
         if ($request->hasFile('archivos')) {
@@ -80,6 +90,8 @@ class ImportacionController extends Controller
         $filtroTipo = $request->input('tipo_indicadores', 'todas');
         $overrideEstablecimientoId = $request->input('establecimiento_id');
 
+        $this->limpiarTemporalesAntiguos();
+
         try {
             $groups = [];
             $unmatchedFiles = [];
@@ -88,7 +100,20 @@ class ImportacionController extends Controller
                 $originalName = $file->getClientOriginalName();
                 $fileToken = (string) Str::uuid();
 
-                $tempPath = $file->storeAs('temp_rem', "{$fileToken}.".$file->getClientOriginalExtension());
+                // La extensión se normaliza contra una lista blanca: nunca se usa tal cual la envía el cliente.
+                $extension = strtolower((string) $file->getClientOriginalExtension());
+                if (! in_array($extension, ['xlsx', 'xlsm'], true)) {
+                    $extension = 'xlsx';
+                }
+
+                $tempPath = $file->storeAs('temp_rem', "{$fileToken}.{$extension}");
+
+                if ($tempPath === false) {
+                    throw new \RuntimeException('No fue posible almacenar temporalmente la planilla.');
+                }
+
+                $storedPaths[] = $tempPath;
+
                 $fullPath = storage_path("app/private/{$tempPath}");
 
                 if (! file_exists($fullPath)) {
@@ -172,6 +197,7 @@ class ImportacionController extends Controller
                 $tempToken = $firstUnmatched['file_token'];
 
                 Cache::put("rem_pending_{$tempToken}", [
+                    'user_id' => $request->user()->id,
                     'file_path' => $firstUnmatched['file_path'],
                     'filename' => $firstUnmatched['filename'],
                     'metadata' => $firstUnmatched['metadata'],
@@ -225,6 +251,7 @@ class ImportacionController extends Controller
                 $tempToken = (string) Str::uuid();
 
                 Cache::put("rem_pending_{$tempToken}", [
+                    'user_id' => $request->user()->id,
                     'archivos' => $group['archivos_procesados'],
                     'metadata' => [
                         'año' => $group['año'],
@@ -309,8 +336,27 @@ class ImportacionController extends Controller
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Ocurrió un error al procesar las planillas: '.$e->getMessage(),
+                'message' => 'No fue posible procesar las planillas. Verifique que los archivos correspondan a un REM válido e intente nuevamente.',
             ], 422);
+        } finally {
+            foreach ($storedPaths as $storedPath) {
+                Storage::disk('local')->delete($storedPath);
+            }
+        }
+    }
+
+    /**
+     * Elimina planillas temporales de importaciones ya expiradas (la caché de la importación dura 2 horas).
+     */
+    private function limpiarTemporalesAntiguos(): void
+    {
+        $disk = Storage::disk('local');
+        $limite = now()->subHours(2)->getTimestamp();
+
+        foreach ($disk->files('temp_rem') as $archivo) {
+            if ($disk->lastModified($archivo) < $limite) {
+                $disk->delete($archivo);
+            }
         }
     }
 
@@ -335,7 +381,28 @@ class ImportacionController extends Controller
         $tempToken = $request->input('temp_token');
         $sessionData = Cache::get("rem_pending_{$tempToken}");
 
+        if (! is_array($sessionData)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'La importación expiró o no es válida. Vuelva a procesar las planillas.',
+            ], 422);
+        }
+
+        // La importación solo puede confirmarla el usuario que la generó.
+        if (isset($sessionData['user_id']) && (int) $sessionData['user_id'] !== (int) $request->user()->id) {
+            abort(403, 'No autorizado para confirmar esta importación.');
+        }
+
         $establecimientoId = (int) $request->input('establecimiento_id');
+
+        // Los datos extraídos solo pueden persistirse para el establecimiento detectado en la planilla.
+        if (isset($sessionData['establecimiento_id']) && (int) $sessionData['establecimiento_id'] !== $establecimientoId) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'El establecimiento seleccionado no coincide con el de la planilla procesada.',
+            ], 422);
+        }
+
         $establecimiento = Establecimiento::findOrFail($establecimientoId);
         $año = (int) $request->input('año');
         $mes = (int) $request->input('mes');
@@ -404,6 +471,20 @@ class ImportacionController extends Controller
             }
 
             $sessionData = $tempToken ? Cache::get("rem_pending_{$tempToken}") : null;
+
+            if (! is_array($sessionData)) {
+                continue;
+            }
+
+            // La importación solo puede confirmarla el usuario que la generó, para el establecimiento detectado.
+            if (isset($sessionData['user_id']) && (int) $sessionData['user_id'] !== (int) $request->user()->id) {
+                continue;
+            }
+
+            if (isset($sessionData['establecimiento_id']) && (int) $sessionData['establecimiento_id'] !== $establecimientoId) {
+                continue;
+            }
+
             $extracted = $sessionData['extracted'] ?? [];
 
             $savedMedidas = $this->calculateAndSaveIndicadores($establecimiento, $año, $mes, $extracted, $userInputs);

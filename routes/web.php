@@ -21,7 +21,14 @@ Route::middleware('guest')->group(function () {
     })->name('login');
 
     Route::post('/', function () {
-        $credentials = request()->only('email', 'password');
+        $credentials = request()->validate([
+            'email' => ['required', 'string', 'email'],
+            'password' => ['required', 'string'],
+        ], [
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.email' => 'El correo electrónico no es válido.',
+            'password.required' => 'La contraseña es obligatoria.',
+        ]);
 
         if (Auth::attempt($credentials, request()->boolean('remember'))) {
             request()->session()->regenerate();
@@ -38,7 +45,7 @@ Route::middleware('guest')->group(function () {
         return back()->withErrors([
             'email' => 'Las credenciales no son correctas.',
         ])->onlyInput('email');
-    })->name('login.post');
+    })->middleware('throttle:6,1')->name('login.post');
 
     Route::get('/password/request', function () {
         return view('auth.login'); // TODO: vista de recuperación de contraseña

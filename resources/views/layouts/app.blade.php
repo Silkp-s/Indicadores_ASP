@@ -158,7 +158,7 @@
             Swal.fire({
                 icon: 'success',
                 title: '¡Operación Exitosa!',
-                text: {!! json_encode(session('status')) !!},
+                text: @json(session('status')),
                 timer: 4000,
                 showConfirmButton: false,
                 toast: true,
@@ -171,7 +171,7 @@
             Swal.fire({
                 icon: 'success',
                 title: '¡Operación Exitosa!',
-                text: {!! json_encode(session('success')) !!},
+                text: @json(session('success')),
                 timer: 4000,
                 showConfirmButton: false,
                 toast: true,
@@ -184,7 +184,7 @@
             Swal.fire({
                 icon: 'error',
                 title: 'Error de Acceso o Validación',
-                text: {!! json_encode(session('error')) !!},
+                text: @json(session('error')),
                 confirmButtonColor: '#0f1424',
                 confirmButtonText: 'Entendido'
             });
@@ -194,7 +194,7 @@
             Swal.fire({
                 icon: 'warning',
                 title: 'Atención',
-                text: {!! json_encode(session('warning')) !!},
+                text: @json(session('warning')),
                 confirmButtonColor: '#0f1424',
                 confirmButtonText: 'Entendido'
             });
