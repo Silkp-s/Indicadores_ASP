@@ -177,6 +177,8 @@ test('previsualizar con un archivo real o temporal detecta metadatos y solicita 
             'archivo' => $uploadedFile,
         ]);
 
+    dump($response->json());
+
     $response->assertOk()
         ->assertJsonStructure([
             'status',
@@ -219,6 +221,8 @@ test('previsualizar responde establishment_not_found si el archivo tiene un esta
         ->post(route('importacion.previsualizar'), [
             'archivo' => $uploadedFile,
         ]);
+
+    dump($response->json());
 
     $response->assertOk()
         ->assertJson([

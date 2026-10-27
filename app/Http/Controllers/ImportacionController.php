@@ -134,6 +134,14 @@ class ImportacionController extends Controller
                     );
                 }
 
+                // 2. Extracción de numeradores y denominadores de la planilla
+                $extracted = $establecimiento !== null
+                    ? $this->remReader->extractNumeradores($spreadsheet)
+                    : [];
+
+                // Se libera la planilla para no acumular memoria al procesar varias en un mismo lote.
+                $this->remReader->releaseSpreadsheet($spreadsheet);
+
                 if ($establecimiento === null) {
                     $unmatchedFiles[] = [
                         'file_path' => $fullPath,
@@ -144,9 +152,6 @@ class ImportacionController extends Controller
 
                     continue;
                 }
-
-                // 2. Extracción de numeradores y denominadores de la planilla
-                $extracted = $this->remReader->extractNumeradores($spreadsheet);
 
                 $año = (int) ($metadata['año'] ?? date('Y'));
                 $mes = (int) ($metadata['mes'] ?? date('n'));

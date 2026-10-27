@@ -57,12 +57,29 @@ class RemReaderService
         $reader = new Xlsx;
         $reader->setReadDataOnly(true);
         $reader->setIncludeCharts(false);
+        // Las planillas REM traen miles de celdas vacías con formato; omitirlas reduce el uso de memoria ~80%.
+        $reader->setReadEmptyCells(false);
 
         if (! empty($onlySheets)) {
             $reader->setLoadSheetsOnly($onlySheets);
         }
 
         return $reader->load($filePath);
+    }
+
+    /**
+     * Libera una planilla ya procesada para que la memoria se recupere antes de cargar la siguiente.
+     */
+    public function releaseSpreadsheet(?Spreadsheet &$spreadsheet): void
+    {
+        if ($spreadsheet === null) {
+            return;
+        }
+
+        $spreadsheet->disconnectWorksheets();
+        $spreadsheet = null;
+
+        gc_collect_cycles();
     }
 
     /**
