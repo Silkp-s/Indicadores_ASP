@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CentroMandoController;
+use App\Http\Controllers\DeisController;
 use App\Http\Controllers\EstablecimientoController;
 use App\Http\Controllers\IaapsMetasController;
 use App\Http\Controllers\ImportacionController;
@@ -99,9 +100,9 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
         return view('en-construccion', ['titulo' => 'Compromisos']); // TODO: Módulo · Compromisos de Gestión
     })->name('compromisos.index');
 
-    Route::get('/inteligencia-deis', function () {
-        return view('en-construccion', ['titulo' => 'Inteligencia DEIS']); // TODO: Módulo · Inteligencia DEIS
-    })->name('inteligencia-deis.index');
+    // Módulo Inteligencia DEIS (tableros SST y datasets abiertos DEIS-MINSAL)
+    Route::get('/inteligencia-deis', [DeisController::class, 'index'])->name('inteligencia-deis.index');
+    Route::post('/inteligencia-deis/actualizar', [DeisController::class, 'actualizar'])->name('inteligencia-deis.actualizar')->middleware('role:Admin');
 
     Route::get('/alertas', function () {
         return view('en-construccion', ['titulo' => 'Alertas']); // TODO: Módulo · Alertas
