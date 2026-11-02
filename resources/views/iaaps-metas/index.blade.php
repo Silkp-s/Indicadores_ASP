@@ -35,9 +35,9 @@
 
     {{-- Barra de filtros y acciones --}}
     <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
-        
+
         <form method="GET" action="{{ route('iaaps-metas.index') }}" data-filtros class="flex flex-1 flex-wrap items-center gap-3">
-            
+
             {{-- Búsqueda por código o nombre --}}
             <div class="relative w-full flex-1 sm:min-w-[240px]">
                 <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -280,7 +280,7 @@
                         <tr id="detalle-indicador-{{ $indicador->id }}" class="hidden bg-[#F8FAFC] border-b-2 border-brand-800/10">
                             <td colspan="9" class="p-4 sm:p-6">
                                 <div class="rounded-xl border border-[#CBD5E1] bg-white p-4 sm:p-5 shadow-xs space-y-4">
-                                    
+
                                     {{-- Encabezado del Acordeón con Definición de Fórmulas y Resumen Comunal --}}
                                     <div class="flex flex-wrap items-start justify-between gap-4 border-b border-[#E2E8F0] pb-4">
                                         <div>

@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             EstablecimientosSeeder::class,
             IndicadorSeeder::class,
+            AlertaReglaSeeder::class,
         ]);
 
         // Create Admin user

@@ -23,7 +23,6 @@
 
     <div class="flex h-screen overflow-hidden">
 
-        {{-- Sidebar --}}
         @include('layouts.partials.sidebar')
 
         {{-- Contenido --}}
@@ -31,7 +30,7 @@
 
             {{-- Barra superior: botón móvil, búsqueda global, periodo, notificaciones y perfil --}}
             <header class="flex h-[72px] shrink-0 items-center gap-3 sm:gap-6 border-b border-[#E2E8F0] bg-white px-4 sm:px-6 lg:px-8">
-                
+
                 {{-- Botón hamburguesa móvil --}}
                 <button
                     type="button"
