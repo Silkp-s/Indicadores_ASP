@@ -83,12 +83,8 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::put('/iaaps-metas/{indicador}', [IaapsMetasController::class, 'update'])->name('iaaps-metas.update')->whereNumber('indicador');
     Route::delete('/iaaps-metas/{indicador}', [IaapsMetasController::class, 'destroy'])->name('iaaps-metas.destroy')->whereNumber('indicador');
 
-    // Módulo Establecimientos de Salud
+    // Módulo Establecimientos de Salud (consulta; la administración vive en el panel de Admin)
     Route::get('/establecimientos', [EstablecimientoController::class, 'index'])->name('establecimientos.index');
-    Route::post('/establecimientos', [EstablecimientoController::class, 'store'])->name('establecimientos.store');
-    Route::put('/establecimientos/{establecimiento}', [EstablecimientoController::class, 'update'])->name('establecimientos.update')->whereNumber('establecimiento');
-    Route::delete('/establecimientos/{establecimiento}', [EstablecimientoController::class, 'destroy'])->name('establecimientos.destroy')->whereNumber('establecimiento');
-    Route::patch('/establecimientos/{establecimiento}/estado', [EstablecimientoController::class, 'cambiarEstado'])->name('establecimientos.estado')->whereNumber('establecimiento');
 
     // Módulo de Importación REM (Metas Sanitarias 2026)
     Route::get('/importacion', [ImportacionController::class, 'index'])->name('importacion');
@@ -142,6 +138,12 @@ Route::middleware(['auth', 'admin_only'])->prefix('admin')->name('admin.')->grou
     Route::put('/rem-mappings/{mapping}', [AdminController::class, 'updateRemMapping'])->name('rem-mappings.update')->whereNumber('mapping');
     Route::delete('/rem-mappings/{mapping}', [AdminController::class, 'destroyRemMapping'])->name('rem-mappings.destroy')->whereNumber('mapping');
     Route::patch('/rem-mappings/{mapping}/estado', [AdminController::class, 'cambiarEstadoRemMapping'])->name('rem-mappings.estado')->whereNumber('mapping');
+
+    // Sección 4 · Establecimientos
+    Route::post('/establecimientos', [AdminController::class, 'storeEstablecimiento'])->name('establecimientos.store');
+    Route::put('/establecimientos/{establecimiento}', [AdminController::class, 'updateEstablecimiento'])->name('establecimientos.update')->whereNumber('establecimiento');
+    Route::delete('/establecimientos/{establecimiento}', [AdminController::class, 'destroyEstablecimiento'])->name('establecimientos.destroy')->whereNumber('establecimiento');
+    Route::patch('/establecimientos/{establecimiento}/estado', [AdminController::class, 'cambiarEstadoEstablecimiento'])->name('establecimientos.estado')->whereNumber('establecimiento');
 });
 
 /*

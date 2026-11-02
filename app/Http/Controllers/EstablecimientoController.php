@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\EstablecimientoRequest;
 use App\Models\Establecimiento;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Módulo de Administración de Establecimientos de Salud de la Red Asistencial.
+ * Módulo de consulta de los Establecimientos de Salud de la Red Asistencial.
+ *
+ * La administración (crear, editar, cambiar estado y eliminar) se realiza desde
+ * la sección "Establecimientos" del panel de administración (AdminController).
  */
 class EstablecimientoController extends Controller
 {
@@ -57,67 +59,6 @@ class EstablecimientoController extends Controller
             'stats' => $stats,
             'tipos' => Establecimiento::TIPOS,
         ]);
-    }
-
-    /**
-     * Almacena un nuevo establecimiento en la base de datos.
-     */
-    public function store(EstablecimientoRequest $request): RedirectResponse
-    {
-        $establecimiento = Establecimiento::create($request->validated());
-
-        return redirect()
-            ->route('establecimientos.index', ['q' => $establecimiento->codigo_deis ?: $establecimiento->nombre])
-            ->with('status', "Establecimiento “{$establecimiento->nombre}” creado exitosamente.");
-    }
-
-    /**
-     * Actualiza la información de un establecimiento existente.
-     */
-    public function update(EstablecimientoRequest $request, Establecimiento $establecimiento): RedirectResponse
-    {
-        $establecimiento->update($request->validated());
-
-        return back()->with('status', "Establecimiento “{$establecimiento->nombre}” actualizado exitosamente.");
-    }
-
-    /**
-     * Elimina un establecimiento si no posee mediciones registradas asociadas.
-     */
-    public function destroy(Establecimiento $establecimiento): RedirectResponse
-    {
-        $conteoMedidas = $establecimiento->medidas()->count();
-
-        if ($conteoMedidas > 0) {
-            return back()->withErrors([
-                'establecimiento' => "No se puede eliminar “{$establecimiento->nombre}” porque cuenta con {$conteoMedidas} mediciones registradas en el sistema. Puedes desactivarlo para que no figure en nuevas operaciones.",
-            ])->with('error', "No se puede eliminar “{$establecimiento->nombre}” porque cuenta con {$conteoMedidas} mediciones registradas en el sistema. Puedes desactivarlo para que no figure en nuevas operaciones.");
-        }
-
-        $nombre = $establecimiento->nombre;
-        $establecimiento->delete();
-
-        return redirect()
-            ->route('establecimientos.index')
-            ->with('status', "Establecimiento “{$nombre}” eliminado exitosamente.");
-    }
-
-    /**
-     * Cambia rápidamente el estado activo/inactivo del establecimiento.
-     */
-    public function cambiarEstado(Request $request, Establecimiento $establecimiento): RedirectResponse
-    {
-        $datos = $request->validate([
-            'is_active' => ['required', 'boolean'],
-        ]);
-
-        $establecimiento->update([
-            'is_active' => (bool) $datos['is_active'],
-        ]);
-
-        $accion = $establecimiento->is_active ? 'activado' : 'desactivado';
-
-        return back()->with('status', "Establecimiento “{$establecimiento->nombre}” {$accion} exitosamente.");
     }
 
     /**

@@ -100,6 +100,28 @@
                 {{ $stats['total_mapeos_rem'] }}
             </span>
         </a>
+
+        {{-- Pestaña 4: Establecimientos --}}
+        <a
+            href="{{ route('admin.dashboard', ['tab' => 'establecimientos']) }}"
+            @class([
+                'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all',
+                'bg-brand-950 text-white shadow-xs' => $tab === 'establecimientos',
+                'bg-white text-[#64748B] hover:text-brand-950 hover:bg-[#F1F5F9] border border-[#E2E8F0]' => $tab !== 'establecimientos',
+            ])
+        >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+            </svg>
+            <span>Sección 4: Establecimientos</span>
+            <span @class([
+                'ml-1 rounded-full px-2 py-0.5 text-xs font-bold',
+                'bg-white/20 text-white' => $tab === 'establecimientos',
+                'bg-[#F1F5F9] text-brand-950' => $tab !== 'establecimientos',
+            ])>
+                {{ $stats['total_establecimientos'] }}
+            </span>
+        </a>
     </div>
 
     {{-- ========================================================================= --}}
@@ -758,11 +780,242 @@
         </div>
     @endif
 
+    {{-- ========================================================================= --}}
+    {{-- SECCIÓN 4: ESTABLECIMIENTOS DE SALUD                                      --}}
+    {{-- ========================================================================= --}}
+    @if ($tab === 'establecimientos')
+        <div class="space-y-6">
+
+            {{-- Banner informativo --}}
+            <div class="rounded-xl border border-brand-800/20 bg-brand-50/50 p-4 flex items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-sm font-bold text-brand-950">Mantenedor Administrativo de Establecimientos</h3>
+                    <p class="text-xs text-[#64748B] mt-0.5">
+                        Crea, edita o elimina los recintos de salud de la red comunal. También puedes activar o desactivar establecimientos de forma inmediata.
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    data-abrir-nuevo-establecimiento
+                    class="shrink-0 flex items-center gap-2 rounded-lg bg-brand-950 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-800 transition-colors"
+                >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    <span>Nuevo establecimiento</span>
+                </button>
+            </div>
+
+            {{-- Filtros y búsqueda --}}
+            <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
+                <form method="GET" action="{{ route('admin.dashboard') }}" class="flex flex-1 flex-wrap items-center gap-3">
+                    <input type="hidden" name="tab" value="establecimientos">
+
+                    {{-- Búsqueda --}}
+                    <div class="relative w-full flex-1 sm:min-w-[240px]">
+                        <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            name="q_est"
+                            value="{{ $qEst }}"
+                            placeholder="Buscar por nombre o código DEIS..."
+                            class="w-full rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] py-2 pl-10 pr-3 text-sm text-brand-950 placeholder:text-[#94A3B8] focus:border-accent-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                        >
+                    </div>
+
+                    {{-- Filtro Tipo --}}
+                    <div class="w-full sm:w-auto min-w-[160px]">
+                        <select
+                            name="tipo_est"
+                            onchange="this.form.submit()"
+                            class="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-brand-950 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                        >
+                            <option value="">Tipo: Todos</option>
+                            @foreach ($tiposEstablecimiento as $tipo)
+                                <option value="{{ $tipo }}" @selected($tipoEst === $tipo)>{{ $tipo }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Filtro Estado --}}
+                    <div class="w-full sm:w-auto min-w-[140px]">
+                        <select
+                            name="estado_est"
+                            onchange="this.form.submit()"
+                            class="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-brand-950 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                        >
+                            <option value="todos" @selected($estadoEst === 'todos')>Estado: Todos</option>
+                            <option value="activo" @selected($estadoEst === 'activo')>Activos</option>
+                            <option value="inactivo" @selected($estadoEst === 'inactivo')>Inactivos</option>
+                        </select>
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="rounded-lg bg-brand-950 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-800 transition-colors"
+                    >
+                        Filtrar
+                    </button>
+                    @if ($qEst || $tipoEst || $estadoEst !== 'todos')
+                        <a
+                            href="{{ route('admin.dashboard', ['tab' => 'establecimientos']) }}"
+                            class="rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                        >
+                            Limpiar
+                        </a>
+                    @endif
+                </form>
+            </div>
+
+            {{-- Tabla de Establecimientos --}}
+            <div class="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white shadow-xs">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[800px] text-left text-sm">
+                        <thead class="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wider text-[#64748B] border-b border-[#E2E8F0]">
+                            <tr>
+                                <th class="px-5 py-3.5">Código DEIS</th>
+                                <th class="px-5 py-3.5">Nombre del Establecimiento</th>
+                                <th class="px-5 py-3.5">Tipo</th>
+                                <th class="px-5 py-3.5 text-right">Población Inscrita</th>
+                                <th class="px-5 py-3.5 text-center">Estado</th>
+                                <th class="px-5 py-3.5 text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#E2E8F0]" id="establecimientos-admin-filas">
+                            @forelse ($establecimientos as $est)
+                                @php
+                                    $estJson = json_encode([
+                                        'id' => $est->id,
+                                        'nombre' => $est->nombre,
+                                        'codigo_deis' => $est->codigo_deis ?? '',
+                                        'tipo' => $est->tipo,
+                                        'poblacion_inscrita' => (int) $est->poblacion_inscrita,
+                                        'is_active' => (bool) $est->is_active,
+                                        'url_actualizar' => route('admin.establecimientos.update', $est),
+                                    ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+                                @endphp
+                                <tr class="hover:bg-[#F8FAFC]/80 transition-colors" data-establecimiento="{{ $estJson }}">
+                                    <td class="px-5 py-3.5 whitespace-nowrap">
+                                        @if ($est->codigo_deis)
+                                            <span class="inline-flex rounded-md bg-brand-100 px-2 py-0.5 font-mono text-xs font-bold text-brand-900 border border-brand-200">
+                                                {{ $est->codigo_deis }}
+                                            </span>
+                                        @else
+                                            <span class="text-xs text-[#94A3B8] italic font-mono">Sin DEIS</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-5 py-3.5">
+                                        <span class="block font-semibold text-brand-950">{{ $est->nombre }}</span>
+                                        <span class="text-[11px] text-[#64748B]">Comuna de Talcahuano</span>
+                                    </td>
+                                    <td class="px-5 py-3.5 whitespace-nowrap">
+                                        @php
+                                            $badgeStyle = match ($est->tipo) {
+                                                'CESFAM' => 'bg-blue-50 text-blue-700 border-blue-200',
+                                                'CECOSF' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                                'SAR' => 'bg-purple-50 text-purple-700 border-purple-200',
+                                                'SAPU' => 'bg-amber-50 text-amber-700 border-amber-200',
+                                                'DAS' => 'bg-slate-100 text-slate-800 border-slate-300',
+                                                default => 'bg-gray-50 text-gray-700 border-gray-200',
+                                            };
+                                        @endphp
+                                        <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold border {{ $badgeStyle }}">
+                                            {{ $est->tipo }}
+                                        </span>
+                                    </td>
+                                    <td class="px-5 py-3.5 text-right font-mono font-bold text-brand-950 whitespace-nowrap">
+                                        {{ number_format($est->poblacion_inscrita, 0, ',', '.') }}
+                                    </td>
+                                    <td class="px-5 py-3.5 text-center whitespace-nowrap">
+                                        @if ($est->is_active)
+                                            <span class="inline-flex rounded-full bg-status-ok-bg px-2.5 py-0.5 text-xs font-semibold text-status-ok-fg">
+                                                Activo
+                                            </span>
+                                        @else
+                                            <span class="inline-flex rounded-full bg-[#F1F5F9] px-2.5 py-0.5 text-xs font-semibold text-[#64748B]">
+                                                Inactivo
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-5 py-3.5 text-right whitespace-nowrap">
+                                        <div class="flex items-center justify-end gap-2">
+                                            {{-- Editar --}}
+                                            <button
+                                                type="button"
+                                                data-accion="editar-establecimiento"
+                                                class="rounded-lg border border-[#CBD5E1] bg-white px-2.5 py-1 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-accent-600 transition-colors"
+                                                title="Editar establecimiento"
+                                            >
+                                                Editar
+                                            </button>
+
+                                            {{-- Cambiar estado --}}
+                                            <form method="POST" action="{{ route('admin.establecimientos.estado', $est) }}" class="inline">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="hidden" name="is_active" value="{{ $est->is_active ? 0 : 1 }}">
+                                                <button
+                                                    type="submit"
+                                                    class="rounded-lg border border-[#CBD5E1] bg-white px-2 py-1 text-xs font-medium text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                                                    title="{{ $est->is_active ? 'Desactivar' : 'Activar' }}"
+                                                >
+                                                    {{ $est->is_active ? 'Desactivar' : 'Activar' }}
+                                                </button>
+                                            </form>
+
+                                            {{-- Eliminar --}}
+                                            <form
+                                                method="POST"
+                                                action="{{ route('admin.establecimientos.destroy', $est) }}"
+                                                class="inline form-eliminar"
+                                                data-swal-title="¿Eliminar establecimiento?"
+                                                data-swal-text="¿Confirmas que deseas eliminar el establecimiento “{{ $est->nombre }}”? Esta acción no se puede deshacer."
+                                                data-swal-confirm="Sí, eliminar"
+                                            >
+                                                @csrf
+                                                @method('DELETE')
+                                                <button
+                                                    type="submit"
+                                                    class="rounded-lg border border-status-bad-fg/30 bg-status-bad-bg px-2.5 py-1 text-xs font-semibold text-status-bad-fg hover:bg-status-bad-fg/15 transition-colors"
+                                                    title="Eliminar establecimiento"
+                                                >
+                                                    Eliminar
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-5 py-12 text-center text-sm text-[#64748B]">
+                                        No se encontraron establecimientos registrados.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Paginación Establecimientos --}}
+                @if ($establecimientos->hasPages() || $establecimientos->total() > 0)
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-[#E2E8F0] px-6 py-3.5 text-sm text-[#64748B]">
+                        <span>Mostrando <strong class="text-brand-950">{{ $establecimientos->firstItem() ?? 0 }}–{{ $establecimientos->lastItem() ?? 0 }}</strong> de {{ $establecimientos->total() }} establecimientos</span>
+                        {{ $establecimientos->links() }}
+                    </div>
+                @endif
+            </div>
+
+        </div>
+    @endif
+
 </div>
 
 {{-- Modales de administración --}}
 @include('admin.partials.modal-indicador')
 @include('admin.partials.modal-rem-mapping')
+@include('admin.partials.modal-establecimiento')
 
 @endsection
 
@@ -897,11 +1150,70 @@
             abrirModalRem();
         });
 
+        // ==========================================
+        // Modal Establecimientos
+        // ==========================================
+        const modalEstablecimiento = document.getElementById('modal-admin-establecimiento');
+        const formEstablecimiento = document.getElementById('form-admin-establecimiento');
+
+        const abrirModalEstablecimiento = () => {
+            modalEstablecimiento.classList.replace('hidden', 'flex');
+            (modalEstablecimiento.querySelector('select, input:not([type="hidden"])') ?? modalEstablecimiento.querySelector('button'))?.focus();
+        };
+
+        const cerrarModalEstablecimiento = () => {
+            modalEstablecimiento.classList.replace('flex', 'hidden');
+        };
+
+        modalEstablecimiento?.addEventListener('click', (e) => {
+            if (e.target === modalEstablecimiento || e.target.closest('[data-cerrar-modal-establecimiento]')) {
+                cerrarModalEstablecimiento();
+            }
+        });
+
+        document.querySelector('[data-abrir-nuevo-establecimiento]')?.addEventListener('click', () => {
+            document.getElementById('form-admin-establecimiento-titulo').textContent = 'Nuevo Establecimiento';
+            formEstablecimiento.action = formEstablecimiento.dataset.urlCrear;
+            formEstablecimiento.elements._method.disabled = true;
+            formEstablecimiento.elements.establecimiento_id.value = '';
+
+            formEstablecimiento.elements.nombre.value = '';
+            formEstablecimiento.elements.codigo_deis.value = '';
+            formEstablecimiento.elements.tipo.value = 'CESFAM';
+            formEstablecimiento.elements.poblacion_inscrita.value = '0';
+            formEstablecimiento.elements.is_active.value = '1';
+
+            abrirModalEstablecimiento();
+        });
+
+        document.getElementById('establecimientos-admin-filas')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-accion="editar-establecimiento"]');
+            if (!btn) return;
+
+            const tr = btn.closest('tr');
+            if (!tr || !tr.dataset.establecimiento) return;
+
+            const datos = JSON.parse(tr.dataset.establecimiento);
+            document.getElementById('form-admin-establecimiento-titulo').textContent = `Editar establecimiento: ${datos.nombre}`;
+            formEstablecimiento.action = datos.url_actualizar;
+            formEstablecimiento.elements._method.disabled = false;
+            formEstablecimiento.elements.establecimiento_id.value = datos.id;
+
+            formEstablecimiento.elements.nombre.value = datos.nombre ?? '';
+            formEstablecimiento.elements.codigo_deis.value = datos.codigo_deis ?? '';
+            formEstablecimiento.elements.tipo.value = datos.tipo ?? 'CESFAM';
+            formEstablecimiento.elements.poblacion_inscrita.value = datos.poblacion_inscrita ?? 0;
+            formEstablecimiento.elements.is_active.value = datos.is_active ? '1' : '0';
+
+            abrirModalEstablecimiento();
+        });
+
         // Cierre con Escape para cualquier modal
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 if (modalIndicador?.classList.contains('flex')) cerrarModalIndicador();
                 if (modalRem?.classList.contains('flex')) cerrarModalRem();
+                if (modalEstablecimiento?.classList.contains('flex')) cerrarModalEstablecimiento();
             }
         });
     })();

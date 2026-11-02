@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\EstablecimientoRequest;
 use App\Http\Requests\IaapsMetaRequest;
 use App\Http\Requests\RemMappingRequest;
+use App\Models\Establecimiento;
 use App\Models\Indicador;
 use App\Models\RemMapping;
 use App\Models\User;
@@ -17,10 +19,11 @@ use Spatie\Permission\Models\Role;
 class AdminController extends Controller
 {
     /**
-     * Muestra el panel de administración unificado con las 3 secciones:
+     * Muestra el panel de administración unificado con las 4 secciones:
      * 1. Gestión de Usuarios
      * 2. Metas Sanitarias e IAAPS
      * 3. Configuración de Mapeo de Celdas REM
+     * 4. Establecimientos de Salud
      */
     public function index(Request $request): View
     {
@@ -87,6 +90,25 @@ class AdminController extends Controller
 
         $remMappings = $remQuery->orderBy('hoja')->paginate(12, ['*'], 'page_rem')->withQueryString();
 
+        // 4. Sección Establecimientos de Salud
+        $qEst = trim((string) $request->input('q_est', ''));
+        $tipoEst = (string) $request->input('tipo_est', '');
+        $estadoEst = (string) $request->input('estado_est', 'todos');
+
+        $filtrosEst = [
+            'q' => $qEst,
+            'tipo' => in_array($tipoEst, Establecimiento::TIPOS, true) ? $tipoEst : null,
+            'estado' => in_array($estadoEst, ['activo', 'inactivo', 'todos'], true) ? $estadoEst : 'todos',
+        ];
+
+        $establecimientos = Establecimiento::query()
+            ->withCount('medidas')
+            ->filtrar($filtrosEst)
+            ->orderBy('tipo')
+            ->orderBy('nombre')
+            ->paginate(12, ['*'], 'page_establecimientos')
+            ->withQueryString();
+
         // Indicadores disponibles para vincular en mapeo REM
         $indicadoresDisponibles = Indicador::whereIn('tipo', ['Meta Sanitaria', 'IAAPS'])
             ->orderBy('tipo')
@@ -100,6 +122,7 @@ class AdminController extends Controller
             'total_indicadores' => Indicador::whereIn('tipo', ['Meta Sanitaria', 'IAAPS'])->count(),
             'total_mapeos_rem' => RemMapping::count(),
             'mapeos_activos' => RemMapping::where('is_active', true)->count(),
+            'total_establecimientos' => Establecimiento::count(),
         ];
 
         return view('admin.dashboard', [
@@ -113,6 +136,11 @@ class AdminController extends Controller
             'remMappings' => $remMappings,
             'qRem' => $qRem,
             'indicadoresDisponibles' => $indicadoresDisponibles,
+            'establecimientos' => $establecimientos,
+            'qEst' => $qEst,
+            'tipoEst' => $tipoEst,
+            'estadoEst' => $estadoEst,
+            'tiposEstablecimiento' => Establecimiento::TIPOS,
             'stats' => $stats,
             'roles' => Role::all(),
         ]);
@@ -294,5 +322,55 @@ class AdminController extends Controller
 
         return redirect()->route('admin.dashboard', ['tab' => 'rem'])
             ->with('status', "Mapeo REM-{$mapping->hoja} {$accion} correctamente.");
+    }
+
+    // ==========================================
+    // SECCIÓN 4: ESTABLECIMIENTOS DE SALUD
+    // ==========================================
+
+    public function storeEstablecimiento(EstablecimientoRequest $request): RedirectResponse
+    {
+        $establecimiento = Establecimiento::create($request->validated());
+
+        return redirect()->route('admin.dashboard', ['tab' => 'establecimientos', 'q_est' => $establecimiento->codigo_deis ?: $establecimiento->nombre])
+            ->with('status', "Establecimiento “{$establecimiento->nombre}” creado exitosamente.");
+    }
+
+    public function updateEstablecimiento(EstablecimientoRequest $request, Establecimiento $establecimiento): RedirectResponse
+    {
+        $establecimiento->update($request->validated());
+
+        return redirect()->route('admin.dashboard', ['tab' => 'establecimientos'])
+            ->with('status', "Establecimiento “{$establecimiento->nombre}” actualizado exitosamente.");
+    }
+
+    public function destroyEstablecimiento(Establecimiento $establecimiento): RedirectResponse
+    {
+        $conteoMedidas = $establecimiento->medidas()->count();
+
+        if ($conteoMedidas > 0) {
+            return back()->withErrors([
+                'establecimiento' => "No se puede eliminar “{$establecimiento->nombre}” porque cuenta con {$conteoMedidas} mediciones registradas en el sistema. Puedes desactivarlo para que no figure en nuevas operaciones.",
+            ]);
+        }
+
+        $nombre = $establecimiento->nombre;
+        $establecimiento->delete();
+
+        return redirect()->route('admin.dashboard', ['tab' => 'establecimientos'])
+            ->with('status', "Establecimiento “{$nombre}” eliminado exitosamente.");
+    }
+
+    public function cambiarEstadoEstablecimiento(Request $request, Establecimiento $establecimiento): RedirectResponse
+    {
+        $datos = $request->validate([
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $establecimiento->update(['is_active' => (bool) $datos['is_active']]);
+        $accion = $establecimiento->is_active ? 'activado' : 'desactivado';
+
+        return redirect()->route('admin.dashboard', ['tab' => 'establecimientos'])
+            ->with('status', "Establecimiento “{$establecimiento->nombre}” {$accion} exitosamente.");
     }
 }

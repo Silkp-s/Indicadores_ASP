@@ -1,14 +1,13 @@
 @extends('layouts.app')
-@use('App\Models\Establecimiento')
 
 @section('title', 'Establecimientos de Salud')
 @section('page-title', 'Establecimientos de Salud')
-@section('page-subtitle', 'Administración de recintos de la red comunal')
+@section('page-subtitle', 'Directorio de recintos de la red comunal')
 
 @section('content')
 <div class="space-y-6">
 
-    {{-- Barra de Búsqueda, Filtros y Botón de Nuevo Establecimiento --}}
+    {{-- Barra de Búsqueda y Filtros --}}
     <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
         
         <form method="GET" action="{{ route('establecimientos.index') }}" data-filtros class="flex flex-1 flex-wrap items-center gap-3">
@@ -73,37 +72,7 @@
             </div>
         </form>
 
-        {{-- Botón para abrir modal de nuevo establecimiento --}}
-        <div class="w-full sm:w-auto shrink-0">
-            <button
-                type="button"
-                data-nuevo-establecimiento
-                class="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-accent-600 transition-colors"
-            >
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                <span>Nuevo establecimiento</span>
-            </button>
-        </div>
-
     </div>
-
-
-
-
-    {{-- Alerta de error (por ejemplo, al intentar eliminar con mediciones vinculadas) --}}
-    @if ($errors->has('establecimiento'))
-        <div class="flex items-start gap-3 rounded-xl border border-status-bad-fg/30 bg-status-bad-bg p-4 text-status-bad-fg shadow-xs">
-            <svg class="h-5 w-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
-            <div class="text-sm">
-                <p class="font-bold">Acción Denegada</p>
-                <p class="mt-0.5">{{ $errors->first('establecimiento') }}</p>
-            </div>
-        </div>
-    @endif
 
     {{-- Panel de Métricas Rápidas --}}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -202,23 +171,11 @@
                         <th scope="col" class="px-6 py-3.5 text-right">Población Inscrita</th>
                         
                         <th scope="col" class="px-6 py-3.5 text-center">Estado</th>
-                        <th scope="col" class="px-6 py-3.5 text-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="establecimientos-filas" class="divide-y divide-[#F1F5F9]">
                     @forelse ($establecimientos as $est)
-                        @php
-                            $datos = [
-                                'id' => $est->id,
-                                'nombre' => $est->nombre,
-                                'codigo_deis' => $est->codigo_deis ?? '',
-                                'tipo' => $est->tipo,
-                                'poblacion_inscrita' => (int) $est->poblacion_inscrita,
-                                'is_active' => (bool) $est->is_active,
-                                'url_actualizar' => route('establecimientos.update', $est),
-                            ];
-                        @endphp
-                        <tr data-establecimiento="{{ json_encode($datos) }}" class="hover:bg-[#F8FAFC] transition-colors">
+                        <tr class="hover:bg-[#F8FAFC] transition-colors">
                             
                             {{-- Código DEIS --}}
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -274,71 +231,10 @@
                                     </span>
                                 @endif
                             </td>
-
-                            {{-- Botones de Acción (Editar / Estado / Eliminar) --}}
-                            <td class="px-6 py-4 text-right whitespace-nowrap">
-                                <div class="flex items-center justify-end gap-2">
-                                    
-                                    {{-- Botón Editar --}}
-                                    <button
-                                        type="button"
-                                        data-accion="editar"
-                                        class="rounded-lg border border-[#CBD5E1] bg-white px-2.5 py-1 text-xs font-medium text-[#475569] hover:bg-[#F8FAFC] hover:text-accent-600 transition-colors"
-                                        title="Editar datos del establecimiento"
-                                    >
-                                        Editar
-                                    </button>
-
-                                    {{-- Botón Cambiar Estado --}}
-                                    <form method="POST" action="{{ route('establecimientos.estado', $est) }}" class="inline">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="is_active" value="{{ $est->is_active ? 0 : 1 }}">
-                                        @if ($est->is_active)
-                                            <button
-                                                type="submit"
-                                                class="rounded-lg border border-[#CBD5E1] bg-white px-2.5 py-1 text-xs font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-status-bad-fg transition-colors"
-                                                title="Desactivar establecimiento"
-                                            >
-                                                Desactivar
-                                            </button>
-                                        @else
-                                            <button
-                                                type="submit"
-                                                class="rounded-lg border border-[#CBD5E1] bg-white px-2.5 py-1 text-xs font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-status-ok-fg transition-colors"
-                                                title="Activar establecimiento"
-                                            >
-                                                Activar
-                                            </button>
-                                        @endif
-                                    </form>
-
-                                    {{-- Botón Eliminar --}}
-                                    <form
-                                        method="POST"
-                                        action="{{ route('establecimientos.destroy', $est) }}"
-                                        class="inline form-eliminar"
-                                        data-swal-title="¿Eliminar establecimiento?"
-                                        data-swal-text="¿Confirmas que deseas eliminar el establecimiento “{{ $est->nombre }}”? Esta acción no se puede deshacer."
-                                        data-swal-confirm="Sí, eliminar"
-                                    >
-                                        @csrf
-                                        @method('DELETE')
-                                        <button
-                                            type="submit"
-                                            class="rounded-lg border border-status-bad-fg/30 bg-status-bad-bg px-2.5 py-1 text-xs font-medium text-status-bad-fg hover:bg-status-bad-fg/15 transition-colors"
-                                            title="Eliminar establecimiento"
-                                        >
-                                            Eliminar
-                                        </button>
-                                    </form>
-
-                                </div>
-                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-12 text-center text-sm text-[#64748B]">
+                            <td colspan="5" class="px-6 py-12 text-center text-sm text-[#64748B]">
                                 <svg class="mx-auto h-10 w-10 text-[#CBD5E1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
@@ -364,115 +260,4 @@
     </div>
 
 </div>
-
-{{-- Modal para Crear / Editar Establecimiento --}}
-@include('establecimientos.partials.form-modal')
 @endsection
-
-@push('scripts')
-<script>
-    (() => {
-        const formularioModal = document.getElementById('modal-establecimiento-form');
-        const form = formularioModal.querySelector('form');
-        let disparador = null;
-
-        // Modales: control de apertura / cierre accesible
-        const abrirModal = (modal, origen) => {
-            disparador = origen;
-            modal.classList.replace('hidden', 'flex');
-            (modal.querySelector('input:not([type="hidden"]), select') ?? modal.querySelector('button'))?.focus();
-        };
-
-        const cerrarModal = (modal) => {
-            modal.classList.replace('flex', 'hidden');
-            disparador?.focus();
-        };
-
-        // Cierre al hacer click en el fondo o en [data-cerrar]
-        formularioModal.addEventListener('click', (evento) => {
-            if (evento.target === formularioModal || evento.target.closest('[data-cerrar]')) {
-                cerrarModal(formularioModal);
-            }
-        });
-
-        // Teclado: Escape cierra y Tab queda contenido en el modal
-        document.addEventListener('keydown', (evento) => {
-            if (!formularioModal.classList.contains('flex')) return;
-
-            if (evento.key === 'Escape') {
-                cerrarModal(formularioModal);
-            }
-
-            if (evento.key === 'Tab') {
-                const enfocables = [...formularioModal.querySelectorAll('button, input:not([type="hidden"]), select')];
-                const [primero, ultimo] = [enfocables[0], enfocables.at(-1)];
-
-                if (evento.shiftKey && document.activeElement === primero) {
-                    evento.preventDefault();
-                    ultimo.focus();
-                } else if (!evento.shiftKey && document.activeElement === ultimo) {
-                    evento.preventDefault();
-                    primero.focus();
-                }
-            }
-        });
-
-        // Prepara el formulario para Crear (vacío) o Editar (con datos)
-        const prepararFormulario = (establecimiento) => {
-            // Limpia mensajes de error previos
-            form.querySelectorAll('[data-error]').forEach((err) => err.remove());
-            form.querySelectorAll('[aria-invalid]').forEach((campo) => {
-                campo.removeAttribute('aria-invalid');
-                campo.removeAttribute('aria-describedby');
-            });
-
-            document.getElementById('form-titulo').textContent = establecimiento
-                ? 'Editar establecimiento'
-                : 'Nuevo establecimiento';
-
-            form.action = establecimiento ? establecimiento.url_actualizar : form.dataset.urlCrear;
-            form.elements._method.disabled = !establecimiento;
-            form.elements.establecimiento_id.value = establecimiento?.id ?? '';
-
-            if (establecimiento) {
-                form.elements.nombre.value = establecimiento.nombre ?? '';
-                form.elements.codigo_deis.value = establecimiento.codigo_deis ?? '';
-                form.elements.tipo.value = establecimiento.tipo ?? 'CESFAM';
-                form.elements.poblacion_inscrita.value = establecimiento.poblacion_inscrita ?? 0;
-                form.elements.is_active.value = establecimiento.is_active ? '1' : '0';
-            } else {
-                form.elements.nombre.value = '';
-                form.elements.codigo_deis.value = '';
-                form.elements.tipo.value = 'CESFAM';
-                form.elements.poblacion_inscrita.value = '0';
-                form.elements.is_active.value = '1';
-            }
-        };
-
-        // Evento botón "+ Nuevo establecimiento"
-        document.querySelector('[data-nuevo-establecimiento]')?.addEventListener('click', (evento) => {
-            prepararFormulario(null);
-            abrirModal(formularioModal, evento.currentTarget);
-        });
-
-        // Evento botón "Editar" en las filas de la tabla
-        document.getElementById('establecimientos-filas')?.addEventListener('click', (evento) => {
-            const boton = evento.target.closest('[data-accion="editar"]');
-            if (!boton) return;
-
-            const tr = boton.closest('tr');
-            if (!tr || !tr.dataset.establecimiento) return;
-
-            const datos = JSON.parse(tr.dataset.establecimiento);
-            prepararFormulario(datos);
-            abrirModal(formularioModal, boton);
-        });
-
-        // Si el servidor devolvió errores de validación, reabrir el modal con los valores enviados
-        if (formularioModal.dataset.reabrir === 'true') {
-            abrirModal(formularioModal, document.querySelector('[data-nuevo-establecimiento]'));
-            form.querySelector('[aria-invalid="true"]')?.focus();
-        }
-    })();
-</script>
-@endpush

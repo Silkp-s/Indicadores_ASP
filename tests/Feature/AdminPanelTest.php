@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Establecimiento;
 use App\Models\Indicador;
+use App\Models\IndicadorMedida;
 use App\Models\RemMapping;
 use App\Models\User;
 use App\Services\RemReaderService;
@@ -32,14 +34,15 @@ test('un usuario regular no puede acceder al panel de admin y es redirigido al c
         ->assertRedirect(route('centro-mando'));
 });
 
-test('un administrador puede ver el panel con las 3 secciones', function () {
+test('un administrador puede ver el panel con las 4 secciones', function () {
     $this->actingAs($this->admin)
         ->get(route('admin.dashboard'))
         ->assertOk()
         ->assertSee('Panel de Administración')
         ->assertSee('Sección 1: Usuarios')
         ->assertSee('Sección 2: Metas Sanitarias e IAAPS')
-        ->assertSee('Sección 3: Mapeo de Celdas REM');
+        ->assertSee('Sección 3: Mapeo de Celdas REM')
+        ->assertSee('Sección 4: Establecimientos');
 });
 
 test('seccion 1: el admin puede crear, editar y eliminar usuarios', function () {
@@ -195,6 +198,86 @@ test('seccion 3: el admin puede crear, actualizar, cambiar estado y eliminar map
         ->assertRedirect(route('admin.dashboard', ['tab' => 'rem']));
 
     $this->assertDatabaseMissing('rem_mappings', ['id' => $mapping->id]);
+});
+
+test('seccion 4: el admin puede crear, actualizar, cambiar estado y eliminar establecimientos', function () {
+    // 1. Crear establecimiento
+    $response = $this->actingAs($this->admin)
+        ->post(route('admin.establecimientos.store'), [
+            'nombre' => 'CESFAM Talcahuano Centro',
+            'codigo_deis' => '119999',
+            'tipo' => 'CESFAM',
+            'poblacion_inscrita' => 32000,
+            'is_active' => true,
+        ]);
+
+    $response->assertRedirect(route('admin.dashboard', ['tab' => 'establecimientos', 'q_est' => '119999']));
+    $this->assertDatabaseHas('establecimientos', ['codigo_deis' => '119999']);
+
+    $est = Establecimiento::where('codigo_deis', '119999')->first();
+
+    // 2. Actualizar establecimiento
+    $this->actingAs($this->admin)
+        ->put(route('admin.establecimientos.update', $est), [
+            'nombre' => 'CESFAM Talcahuano Centro Modificado',
+            'codigo_deis' => '119999',
+            'tipo' => 'CESFAM',
+            'poblacion_inscrita' => 35000,
+            'is_active' => true,
+        ])
+        ->assertRedirect(route('admin.dashboard', ['tab' => 'establecimientos']));
+
+    expect($est->fresh()->nombre)->toBe('CESFAM Talcahuano Centro Modificado')
+        ->and((int) $est->fresh()->poblacion_inscrita)->toBe(35000);
+
+    // 3. Cambiar estado
+    $this->actingAs($this->admin)
+        ->patch(route('admin.establecimientos.estado', $est), ['is_active' => false])
+        ->assertRedirect(route('admin.dashboard', ['tab' => 'establecimientos']));
+
+    expect($est->fresh()->is_active)->toBeFalse();
+
+    // 4. Eliminar establecimiento
+    $this->actingAs($this->admin)
+        ->delete(route('admin.establecimientos.destroy', $est))
+        ->assertRedirect(route('admin.dashboard', ['tab' => 'establecimientos']));
+
+    $this->assertDatabaseMissing('establecimientos', ['id' => $est->id]);
+});
+
+test('seccion 4: no se puede eliminar un establecimiento con mediciones registradas', function () {
+    $est = Establecimiento::factory()->create(['nombre' => 'CESFAM Con Mediciones']);
+    $ind = Indicador::factory()->create();
+
+    IndicadorMedida::create([
+        'indicadores_id' => $ind->id,
+        'establecimientos_id' => $est->id,
+        'ano' => 2026,
+        'mes' => 6,
+        'numerador_value' => 100,
+        'denominador_value' => 200,
+        'porcentaje_cumplimiento' => 50,
+        'status' => 'En Riesgo',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.establecimientos.destroy', $est))
+        ->assertSessionHasErrors(['establecimiento']);
+
+    $this->assertDatabaseHas('establecimientos', ['id' => $est->id]);
+});
+
+test('un usuario regular no puede gestionar establecimientos desde el admin', function () {
+    $this->actingAs($this->regularUser)
+        ->post(route('admin.establecimientos.store'), [
+            'nombre' => 'CESFAM No Autorizado',
+            'tipo' => 'CESFAM',
+            'poblacion_inscrita' => 1000,
+            'is_active' => true,
+        ])
+        ->assertRedirect(route('centro-mando'));
+
+    $this->assertDatabaseMissing('establecimientos', ['nombre' => 'CESFAM No Autorizado']);
 });
 
 test('el modulo de importacion REM extrae desde la celda configurada por el admin', function () {

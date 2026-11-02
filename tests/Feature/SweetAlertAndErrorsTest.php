@@ -63,7 +63,7 @@ test('el layout principal incluye el CDN de SweetAlert2 y el interceptor global 
         ->assertSee('¿Confirmas que deseas eliminar este registro?', false);
 });
 
-test('formulario de eliminacion en establecimientos incluye atributos de confirmacion SweetAlert', function () {
+test('formulario de eliminacion de establecimientos en el panel admin incluye confirmacion SweetAlert', function () {
     $est = Establecimiento::create([
         'nombre' => 'CESFAM Prueba SweetAlert',
         'codigo_deis' => '998877',
@@ -72,7 +72,7 @@ test('formulario de eliminacion en establecimientos incluye atributos de confirm
         'is_active' => true,
     ]);
 
-    $response = $this->actingAs($this->usuario)->get(route('establecimientos.index'));
+    $response = $this->actingAs($this->admin)->get(route('admin.dashboard', ['tab' => 'establecimientos']));
 
     $response->assertOk()
         ->assertSee('form-eliminar')
