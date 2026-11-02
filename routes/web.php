@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AlertaController;
 use App\Http\Controllers\CentroMandoController;
 use App\Http\Controllers\DeisController;
 use App\Http\Controllers\EstablecimientoController;
@@ -104,9 +105,10 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::get('/inteligencia-deis', [DeisController::class, 'index'])->name('inteligencia-deis.index');
     Route::post('/inteligencia-deis/actualizar', [DeisController::class, 'actualizar'])->name('inteligencia-deis.actualizar')->middleware('role:Admin');
 
-    Route::get('/alertas', function () {
-        return view('en-construccion', ['titulo' => 'Alertas']); // TODO: Módulo · Alertas
-    })->name('alertas.index');
+    // Módulo 6 · Motor y Bandeja de Alertas
+    Route::get('/alertas', [AlertaController::class, 'index'])->name('alertas.index');
+    Route::post('/alertas/evaluar', [AlertaController::class, 'evaluar'])->name('alertas.evaluar');
+    Route::patch('/alertas/{alerta}', [AlertaController::class, 'update'])->name('alertas.update')->whereNumber('alerta');
 
     Route::get('/configuracion', function () {
         return view('en-construccion', ['titulo' => 'Configuración']); // TODO: vista de Configuración
