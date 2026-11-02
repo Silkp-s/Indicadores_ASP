@@ -541,7 +541,7 @@ class ImportacionController extends Controller
             $tipoCalculo = 'Porcentaje';
 
             // ==========================================
-            // A. METAS SANITARIAS LEY 19.813
+            // A. METAS SANITARIAS
             // ==========================================
             switch ($codigo) {
                 case 'MS-01':
@@ -605,7 +605,7 @@ class ImportacionController extends Controller
                     break;
 
                     // ==========================================
-                    // B. INDICADORES IAAPS 2025
+                    // B. INDICADORES IAAPS 
                     // ==========================================
                 case 'IAAPS-01':
                     $numerador = (float) ($userInputs['iaaps_01_num'] ?? 1);
