@@ -2,14 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\ImportarDatasetDeis;
-use App\Models\DeisImportacion;
+use App\Services\DeisActualizacionService;
 use App\Services\DeisIndicadoresService;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -29,11 +27,12 @@ class DeisController extends Controller
         'egresos' => 'Egresos hospitalarios',
     ];
 
-    /** Horas durante las que una importación pendiente o en proceso impide encolar otra del mismo dataset. */
-    private const HORAS_IMPORTACION_EN_CURSO = 2;
+    /** Aviso cuando no se inicia ninguna actualización porque ya hay una en curso. */
+    private const AVISO_EN_CURSO = 'Los datos del DEIS ya se están actualizando. Espere unos minutos y vuelva a revisar esta página.';
 
     public function __construct(
-        protected DeisIndicadoresService $indicadores
+        protected DeisIndicadoresService $indicadores,
+        protected DeisActualizacionService $actualizacion,
     ) {}
 
     /**
@@ -43,6 +42,9 @@ class DeisController extends Controller
     {
         $pestana = $this->pestana($request->query('tab'));
         $esAdmin = $request->user()->hasRole('Admin');
+
+        // Carga inicial automática: encola los datasets que aún no tienen datos (sin duplicar ni esperar el candado).
+        $this->actualizacion->cargarFaltantes();
 
         $datos = match ($pestana) {
             'tableros' => $this->tableros($this->texto($request, 'tablero')),
@@ -60,6 +62,7 @@ class DeisController extends Controller
             'pestanas' => self::PESTANAS,
             'datos' => $datos,
             'fuente' => $pestana === 'tableros' ? null : $this->indicadores->fuente($pestana),
+            'cargando' => $pestana !== 'tableros' && $this->actualizacion->enCurso($pestana),
             'esAdmin' => $esAdmin,
             'ultimasImportaciones' => $esAdmin ? $this->indicadores->ultimasImportaciones() : collect(),
         ]);
@@ -70,53 +73,37 @@ class DeisController extends Controller
      */
     public function actualizar(Request $request): RedirectResponse
     {
-        $encolados = [];
-        $omitidos = [];
-
-        // El candado evita que dos solicitudes simultáneas pasen ambas la verificación y encolen el mismo dataset dos veces.
-        Cache::lock('deis-actualizar', 10)->block(5, function () use ($request, &$encolados, &$omitidos) {
-            foreach (DeisImportacion::DATASETS as $dataset) {
-                $titulo = (string) config("deis.datasets.{$dataset}.titulo");
-
-                $enCurso = DeisImportacion::query()
-                    ->delDataset($dataset)
-                    ->enCurso()
-                    ->where('created_at', '>=', now()->subHours(self::HORAS_IMPORTACION_EN_CURSO))
-                    ->exists();
-
-                if ($enCurso) {
-                    $omitidos[] = $titulo;
-
-                    continue;
-                }
-
-                $importacion = DeisImportacion::create([
-                    'dataset' => $dataset,
-                    'origen' => Str::limit((string) config("deis.datasets.{$dataset}.url"), 500, ''),
-                    'estado' => DeisImportacion::ESTADO_PENDIENTE,
-                    'user_id' => $request->user()->id,
-                ]);
-
-                ImportarDatasetDeis::dispatch($dataset, $importacion->id);
-
-                $encolados[] = $titulo;
-            }
-        });
-
         $redireccion = redirect()->route('inteligencia-deis.index', ['tab' => $this->pestana($request->input('tab'))]);
 
-        if ($encolados === []) {
-            return $redireccion->with('warning', 'No se encoló ninguna actualización: los tres datasets DEIS ya tienen una importación pendiente o en proceso solicitada hace menos de '.self::HORAS_IMPORTACION_EN_CURSO.' horas.');
+        try {
+            ['encolados' => $encolados, 'omitidos' => $omitidos] = $this->actualizacion->encolar(userId: $request->user()->id);
+        } catch (LockTimeoutException) {
+            // Otra solicitud simultánea está iniciando la actualización.
+            $encolados = [];
         }
 
-        $mensaje = 'Actualización de datos DEIS en cola ('.Arr::join($encolados, ', ', ' y ').'). '
-            .'Se procesará en segundo plano y requiere que el worker de colas esté activo (composer run dev o php artisan queue:work).';
+        if ($encolados === []) {
+            return $redireccion->with('warning', self::AVISO_EN_CURSO);
+        }
+
+        $mensaje = 'Se inició la actualización de '.$this->titulos($encolados).'. '
+            .'La actualización se realiza automáticamente en segundo plano; puede tardar unos minutos.';
 
         if ($omitidos !== []) {
-            $mensaje .= ' Se omitió '.Arr::join($omitidos, ', ', ' y ').' porque ya tiene una importación en curso.';
+            $mensaje .= ' '.$this->titulos($omitidos).(count($omitidos) === 1 ? ' ya se estaba actualizando.' : ' ya se estaban actualizando.');
         }
 
         return $redireccion->with('status', $mensaje);
+    }
+
+    /**
+     * Títulos de los datasets unidos en una frase («A, B y C»).
+     *
+     * @param  list<string>  $datasets
+     */
+    private function titulos(array $datasets): string
+    {
+        return Arr::join(array_map(fn (string $dataset) => (string) config("deis.datasets.{$dataset}.titulo"), $datasets), ', ', ' y ');
     }
 
     /**

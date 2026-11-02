@@ -1,13 +1,11 @@
 @use('App\Models\DeisImportacion')
 
-{{-- Estado de la última importación de cada dataset (solo Admin) --}}
+{{-- Estado de la última actualización de cada conjunto de datos (solo Admin) --}}
 <section class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-xs" aria-labelledby="titulo-estado-importaciones">
     <div>
-        <h2 id="titulo-estado-importaciones" class="text-sm font-bold text-brand-950">Estado de la última importación</h2>
+        <h2 id="titulo-estado-importaciones" class="text-sm font-bold text-brand-950">Estado de la última actualización</h2>
         <p class="mt-0.5 text-xs text-[#64748B]">
-            La actualización corre en segundo plano y requiere que el worker de colas esté activo
-            (<code class="rounded bg-[#F1F5F9] px-1 py-0.5 font-mono text-[11px] text-brand-950">composer run dev</code>
-            o <code class="rounded bg-[#F1F5F9] px-1 py-0.5 font-mono text-[11px] text-brand-950">php artisan queue:work</code>).
+            Los datos se actualizan automáticamente cada semana. La actualización se realiza en segundo plano y puede tardar unos minutos.
         </p>
     </div>
 
@@ -15,8 +13,15 @@
         @foreach (DeisImportacion::DATASETS as $dataset)
             @php
                 $importacion = $ultimasImportaciones->get($dataset);
+                $etiquetaEstado = match ($importacion?->estado) {
+                    DeisImportacion::ESTADO_PENDIENTE => 'En espera',
+                    DeisImportacion::ESTADO_PROCESANDO => 'Actualizando',
+                    DeisImportacion::ESTADO_COMPLETADO => 'Completada',
+                    DeisImportacion::ESTADO_FALLIDO => 'Con error',
+                    default => null,
+                };
                 $fecha = match ($importacion?->estado) {
-                    DeisImportacion::ESTADO_PENDIENTE => ['En cola desde', $importacion->created_at],
+                    DeisImportacion::ESTADO_PENDIENTE => ['En espera desde el', $importacion->created_at],
                     DeisImportacion::ESTADO_PROCESANDO => ['Iniciada el', $importacion->iniciado_en ?? $importacion->created_at],
                     null => null,
                     default => ['Finalizada el', $importacion->finalizado_en ?? $importacion->updated_at],
@@ -33,7 +38,7 @@
                             'bg-status-ok-bg text-status-ok-fg' => $importacion->estado === DeisImportacion::ESTADO_COMPLETADO,
                             'bg-status-bad-bg text-status-bad-fg' => $importacion->estado === DeisImportacion::ESTADO_FALLIDO,
                         ])>
-                            {{ Str::ucfirst($importacion->estado) }}
+                            {{ $etiquetaEstado }}
                         </span>
                     @endif
                 </div>
@@ -42,7 +47,9 @@
                     <p class="mt-2 text-xs text-[#475569]">
                         {{ $fecha[0] }} <strong class="text-brand-950">{{ $fecha[1]?->format('d/m/Y H:i') ?? 'sin fecha' }}</strong>
                         @if ($importacion->user)
-                            · por {{ $importacion->user->name }}
+                            · solicitada por {{ $importacion->user->name }}
+                        @else
+                            · actualización automática
                         @endif
                     </p>
                     @if ($importacion->mensaje)
@@ -55,7 +62,7 @@
                         </p>
                     @endif
                 @else
-                    <p class="mt-2 text-xs text-[#94A3B8]">Sin importaciones registradas.</p>
+                    <p class="mt-2 text-xs text-[#94A3B8]">Aún no se ha actualizado. Los datos se cargarán automáticamente.</p>
                 @endif
             </div>
         @endforeach

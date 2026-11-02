@@ -4,6 +4,7 @@ use App\Models\Indicador;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Queue;
 use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
@@ -299,5 +300,8 @@ test('el gráfico por fuente cuenta solo los indicadores activos', function () {
 });
 
 test('las demás páginas siguen cargando con el nuevo layout', function (string $ruta) {
+    // Con la base vacía, Inteligencia DEIS encola la carga inicial; en tests la cola es síncrona y descargaría del DEIS.
+    Queue::fake();
+
     $this->get(route($ruta))->assertOk();
 })->with(['centro-mando', 'iaaps-metas.index', 'compromisos.index', 'inteligencia-deis.index', 'alertas.index']);
