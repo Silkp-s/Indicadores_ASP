@@ -1,10 +1,21 @@
 <?php
 
 use App\Models\Indicador;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    Role::firstOrCreate(['name' => 'Usuario']);
+    Role::firstOrCreate(['name' => 'Admin']);
+
+    $user = User::factory()->create();
+    $user->assignRole('Admin');
+    $this->actingAs($user);
+});
 
 /**
  * Datos válidos del formulario de indicador, con los cambios indicados.

@@ -17,11 +17,14 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RoleSeeder::class,
+            EstablecimientosSeeder::class,
+            IndicadorSeeder::class,
         ]);
 
         // Create Admin user
         $admin = User::factory()->create([
-            'name' => 'Admin DAS',
+            'name' => 'Admin',
+            'apellido' => 'DAS',
             'email' => 'admin@das.cl',
             'password' => bcrypt('password'),
         ]);
@@ -29,14 +32,15 @@ class DatabaseSeeder extends Seeder
 
         // Create regular Usuario
         $usuario = User::factory()->create([
-            'name' => 'Usuario Prueba',
+            'name' => 'Usuario',
+            'apellido' => 'Prueba',
             'email' => 'usuario@das.cl',
             'password' => bcrypt('password'),
         ]);
         $usuario->assignRole('Usuario');
 
         // Additional test users
-        User::factory(5)->create()->each(function ($user) {
+        User::factory(13)->create()->each(function ($user) {
             $user->assignRole('Usuario');
         });
     }

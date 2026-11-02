@@ -58,11 +58,11 @@
             </div>
         </div>
 
-        <div class="flex justify-end gap-3 border-t border-[#E2E8F0] px-6 py-4">
-            <button type="button" data-cerrar class="rounded-lg px-4 py-2 text-sm font-medium text-[#475569] hover:bg-[#F1F5F9]">
+        <div class="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 border-t border-[#E2E8F0] px-6 py-4">
+            <button type="button" data-cerrar class="w-full sm:w-auto rounded-lg px-4 py-2 text-center text-sm font-medium text-[#475569] hover:bg-[#F1F5F9]">
                 Cerrar
             </button>
-            <button type="button" data-editar-desde-detalle class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-600">
+            <button type="button" data-editar-desde-detalle class="w-full sm:w-auto rounded-lg bg-accent-500 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-accent-600">
                 Editar indicador
             </button>
         </div>
