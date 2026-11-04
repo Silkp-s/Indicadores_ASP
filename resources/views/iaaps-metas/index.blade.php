@@ -240,6 +240,7 @@
 
                             {{-- Acciones (Editar y Eliminar) --}}
                             <td class="px-5 py-3.5 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                @if ($esAdmin)
                                 <div class="flex items-center justify-end gap-1.5">
                                     <button
                                         type="button"
@@ -272,6 +273,7 @@
                                         </button>
                                     </form>
                                 </div>
+                                @endif
                             </td>
 
                         </tr>

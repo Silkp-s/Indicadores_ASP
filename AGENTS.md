@@ -4,7 +4,7 @@
 
 Laravel 13 / PHP 8.4 application for Chilean primary-healthcare KPI monitoring: Metas Sanitarias Ley 19.813 and IAAPS. Server-rendered Blade + Tailwind 4 + Vite; no JS framework. User-facing copy and most domain names are Spanish.
 
-Main modules: `centro-mando` dashboard, `indicadores` catalog, `iaaps-metas`, `establecimientos`, `importacion` (REM spreadsheets), and `admin` (users, indicators, REM cell mappings). Auth uses Spatie roles `Admin` / `Usuario`; regular users land on `/centro-mando`, admins on `/admin`.
+Main modules: `centro-mando` dashboard, `iaaps-metas`, `establecimientos`, `importacion` (REM spreadsheets), and `admin` (users, indicators, REM cell mappings). Auth uses Spatie roles `Admin` / `Usuario`; regular users land on `/centro-mando`, admins on `/admin`.
 
 `CLAUDE.md` is the stock Boost bootstrap and is stale. Boost is already installed and configured in `boost.json` and `opencode.json`; use this file as the source of truth.
 
@@ -29,7 +29,7 @@ Main modules: `centro-mando` dashboard, `indicadores` catalog, `iaaps-metas`, `e
 ## Conventions
 
 - This project uses Laravel 13 model attributes: `#[Table]`, `#[Fillable]`, `#[Hidden]`, and `#[Scope]`. Do not replace them with `$table` / `$fillable` properties.
-- Put new validation in the module's Form Request (`IndicadorRequest`, `IaapsMetaRequest`, `EstablecimientoRequest`, `RemMappingRequest`). `AdminController` user methods are the exception and validate inline.
+- Put new validation in the module's Form Request (`IaapsMetaRequest`, `EstablecimientoRequest`, `RemMappingRequest`). `AdminController` user methods are the exception and validate inline.
 - Frontend is Blade-first: ApexCharts and SweetAlert2 are CDN scripts, and page JavaScript is inline in the relevant Blade view. `resources/js/app.js` is effectively empty; do not assume a bundled JS app. Tailwind is v4 (`@tailwindcss/vite`), CSS-first: the palette lives in `@theme` in `resources/css/app.css`, and a legacy `tailwind.config.js` is also pulled in via `@config` in that file (same brand/accent/status colors in both). Add new theme values in `@theme`, not the JS config.
 - Keep user-facing text, flash messages, and route names in Spanish.
 

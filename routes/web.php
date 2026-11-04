@@ -7,7 +7,6 @@ use App\Http\Controllers\DeisController;
 use App\Http\Controllers\EstablecimientoController;
 use App\Http\Controllers\IaapsMetasController;
 use App\Http\Controllers\ImportacionController;
-use App\Http\Controllers\IndicadorController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -70,18 +69,11 @@ Route::post('/logout', function () {
 Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::get('/centro-mando', [CentroMandoController::class, 'index'])->name('centro-mando');
 
-    // Módulo 1 · Catálogo de Indicadores
-    Route::get('/indicadores', [IndicadorController::class, 'index'])->name('indicadores.index');
-    Route::get('/indicadores/exportar', [IndicadorController::class, 'exportar'])->name('indicadores.exportar');
-    Route::post('/indicadores', [IndicadorController::class, 'store'])->name('indicadores.store');
-    Route::put('/indicadores/{indicador}', [IndicadorController::class, 'update'])->name('indicadores.update')->whereNumber('indicador');
-    Route::patch('/indicadores/{indicador}/estado', [IndicadorController::class, 'cambiarEstado'])->name('indicadores.estado')->whereNumber('indicador');
-
     // Módulo 2 · IAAPS y Metas Sanitarias
     Route::get('/iaaps-metas', [IaapsMetasController::class, 'index'])->name('iaaps-metas.index');
-    Route::post('/iaaps-metas', [IaapsMetasController::class, 'store'])->name('iaaps-metas.store');
-    Route::put('/iaaps-metas/{indicador}', [IaapsMetasController::class, 'update'])->name('iaaps-metas.update')->whereNumber('indicador');
-    Route::delete('/iaaps-metas/{indicador}', [IaapsMetasController::class, 'destroy'])->name('iaaps-metas.destroy')->whereNumber('indicador');
+    Route::post('/iaaps-metas', [IaapsMetasController::class, 'store'])->name('iaaps-metas.store')->middleware('role:Admin');
+    Route::put('/iaaps-metas/{indicador}', [IaapsMetasController::class, 'update'])->name('iaaps-metas.update')->whereNumber('indicador')->middleware('role:Admin');
+    Route::delete('/iaaps-metas/{indicador}', [IaapsMetasController::class, 'destroy'])->name('iaaps-metas.destroy')->whereNumber('indicador')->middleware('role:Admin');
 
     // Módulo Establecimientos de Salud (consulta; la administración vive en el panel de Admin)
     Route::get('/establecimientos', [EstablecimientoController::class, 'index'])->name('establecimientos.index');

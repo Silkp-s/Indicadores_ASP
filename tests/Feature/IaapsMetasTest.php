@@ -15,6 +15,9 @@ beforeEach(function () {
 
     $this->user = User::factory()->create();
     $this->user->assignRole('Usuario');
+
+    $this->admin = User::factory()->create();
+    $this->admin->assignRole('Admin');
 });
 
 test('un usuario no autenticado es redirigido al login', function () {
@@ -199,7 +202,7 @@ test('se puede crear un nuevo indicador IAAPS o Meta Sanitaria', function () {
         'is_active' => true,
     ];
 
-    $response = $this->actingAs($this->user)
+    $response = $this->actingAs($this->admin)
         ->post(route('iaaps-metas.store'), $datos);
 
     $response->assertRedirect(route('iaaps-metas.index', ['q' => 'MS-10']));
@@ -218,7 +221,7 @@ test('se puede crear un nuevo indicador IAAPS o Meta Sanitaria', function () {
 test('falla la creacion si falta algun campo requerido o el codigo ya existe', function () {
     Indicador::factory()->create(['codigo' => 'MS-01']);
 
-    $response = $this->actingAs($this->user)
+    $response = $this->actingAs($this->admin)
         ->from(route('iaaps-metas.index'))
         ->post(route('iaaps-metas.store'), [
             'codigo' => 'MS-01',
@@ -239,7 +242,7 @@ test('se puede actualizar un indicador existente', function () {
         'is_active' => true,
     ]);
 
-    $response = $this->actingAs($this->user)
+    $response = $this->actingAs($this->admin)
         ->put(route('iaaps-metas.update', $indicador), [
             'codigo' => 'MS-05',
             'nombre' => 'Nombre modificado',
@@ -280,7 +283,7 @@ test('se puede eliminar un indicador y sus medidas asociadas', function () {
         'status' => 'Cumpliendo',
     ]);
 
-    $response = $this->actingAs($this->user)
+    $response = $this->actingAs($this->admin)
         ->delete(route('iaaps-metas.destroy', $indicador));
 
     $response->assertRedirect(route('iaaps-metas.index'));
@@ -288,4 +291,34 @@ test('se puede eliminar un indicador y sus medidas asociadas', function () {
 
     $this->assertDatabaseMissing('indicadores', ['id' => $indicador->id]);
     $this->assertDatabaseMissing('indicador_medidas', ['id' => $medida->id]);
+});
+
+test('un usuario regular no puede crear, editar ni eliminar indicadores', function () {
+    $indicador = Indicador::factory()->create(['codigo' => 'MS-SEG', 'tipo' => 'Meta Sanitaria']);
+
+    $this->actingAs($this->user)
+        ->post(route('iaaps-metas.store'), [
+            'codigo' => 'MS-NEW',
+            'nombre' => 'Intento no autorizado',
+            'tipo' => 'Meta Sanitaria',
+            'target_value' => 85,
+            'is_active' => true,
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($this->user)
+        ->put(route('iaaps-metas.update', $indicador), [
+            'codigo' => 'MS-SEG',
+            'nombre' => 'Edición no autorizada',
+            'tipo' => 'Meta Sanitaria',
+            'target_value' => 85,
+            'is_active' => true,
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($this->user)
+        ->delete(route('iaaps-metas.destroy', $indicador))
+        ->assertForbidden();
+
+    $this->assertDatabaseHas('indicadores', ['id' => $indicador->id]);
 });
