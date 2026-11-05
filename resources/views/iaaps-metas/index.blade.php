@@ -7,16 +7,7 @@
 @section('content')
 <div class="space-y-6">
 
-    {{-- Notificaciones flash de éxito o advertencia --}}
-    @if (session('status'))
-        <div class="flex items-center gap-3 rounded-xl border border-status-ok-fg/30 bg-status-ok-bg p-4 text-sm font-medium text-status-ok-fg shadow-xs">
-            <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{{ session('status') }}</span>
-        </div>
-    @endif
-
+    {{-- Errores de validación --}}
     @if ($errors->any())
         <div class="flex items-start gap-3 rounded-xl border border-status-bad-fg/30 bg-status-bad-bg p-4 text-sm text-status-bad-fg shadow-xs">
             <svg class="h-5 w-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -132,26 +123,11 @@
                         <th class="px-5 py-3.5 text-right">Meta</th>
                         <th class="px-5 py-3.5">Periodicidad / Fuente</th>
                         <th class="px-5 py-3.5 text-center">Estado</th>
-                        <th class="px-5 py-3.5 text-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-[#E2E8F0]" id="iaaps-metas-filas">
                     @forelse ($indicadores as $indicador)
                         @php
-                            $datosJson = json_encode([
-                                'id' => $indicador->id,
-                                'codigo' => $indicador->codigo,
-                                'nombre' => $indicador->nombre,
-                                'tipo' => $indicador->tipo,
-                                'target_value' => (float) $indicador->target_value,
-                                'periodicidad' => $indicador->periodicidad,
-                                'fu' => $indicador->fu,
-                                'numerador_description' => $indicador->numerador_description,
-                                'denominador_description' => $indicador->denominador_description,
-                                'is_active' => (bool) $indicador->is_active,
-                                'url_actualizar' => route('iaaps-metas.update', $indicador),
-                            ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
-
                             // Medidas cargadas para este indicador en el periodo seleccionado
                             $medidasConValores = $indicador->medidas->filter(fn ($m) => $m->numerador_value !== null || $m->denominador_value !== null);
                             $totalNum = $medidasConValores->sum(fn ($m) => (float) $m->numerador_value);
@@ -162,7 +138,6 @@
                         {{-- Fila Principal del Indicador (Clickable para desplegar) --}}
                         <tr
                             class="hover:bg-[#F8FAFC]/80 transition-colors cursor-pointer group"
-                            data-indicador="{{ $datosJson }}"
                             data-id="{{ $indicador->id }}"
                             onclick="window.toggleDetalle({{ $indicador->id }}, event)"
                         >
@@ -237,50 +212,11 @@
                                     </span>
                                 @endif
                             </td>
-
-                            {{-- Acciones (Editar y Eliminar) --}}
-                            <td class="px-5 py-3.5 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                                @if ($esAdmin)
-                                <div class="flex items-center justify-end gap-1.5">
-                                    <button
-                                        type="button"
-                                        data-accion="editar"
-                                        class="rounded-lg p-1.5 text-[#64748B] hover:bg-[#F1F5F9] hover:text-brand-950 transition-colors"
-                                        title="Editar indicador"
-                                    >
-                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                        </svg>
-                                    </button>
-                                    <form
-                                        method="POST"
-                                        action="{{ route('iaaps-metas.destroy', $indicador) }}"
-                                        class="inline form-eliminar"
-                                        data-swal-title="¿Eliminar indicador {{ $indicador->codigo }}?"
-                                        data-swal-text="Esta acción eliminará el indicador y sus configuraciones asociadas."
-                                        data-swal-confirm="Sí, eliminar"
-                                    >
-                                        @csrf
-                                        @method('DELETE')
-                                        <button
-                                            type="submit"
-                                            class="rounded-lg p-1.5 text-status-bad-fg hover:bg-status-bad-bg/60 transition-colors"
-                                            title="Eliminar indicador"
-                                        >
-                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                    </form>
-                                </div>
-                                @endif
-                            </td>
-
                         </tr>
 
                         {{-- Fila Desplegable (Acordeón con Numeradores, Denominadores y Cumplimiento de cada establecimiento) --}}
                         <tr id="detalle-indicador-{{ $indicador->id }}" class="hidden bg-[#F8FAFC] border-b-2 border-brand-800/10">
-                            <td colspan="9" class="p-4 sm:p-6">
+                            <td colspan="7" class="p-4 sm:p-6">
                                 <div class="rounded-xl border border-[#CBD5E1] bg-white p-4 sm:p-5 shadow-xs space-y-4">
 
                                     {{-- Encabezado del Acordeón con Definición de Fórmulas y Resumen Comunal --}}
@@ -474,7 +410,7 @@
 
                     @empty
                         <tr>
-                            <td colspan="9" class="px-6 py-12 text-center text-sm text-[#64748B]">
+                            <td colspan="7" class="px-6 py-12 text-center text-sm text-[#64748B]">
                                 <svg class="mx-auto h-10 w-10 text-[#CBD5E1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                 </svg>
@@ -500,8 +436,6 @@
 
 </div>
 
-{{-- Modal Crear / Editar Indicador --}}
-@include('iaaps-metas.partials.form-modal')
 @endsection
 
 @push('scripts')
@@ -530,96 +464,6 @@
                 if (btnTexto) btnTexto.textContent = 'Desplegar';
             }
         };
-
-        const modalIndicador = document.getElementById('modal-indicador-form');
-        const form = document.getElementById('form-indicador');
-        let elementoDisparador = null;
-
-        const abrirModal = (modal, origen) => {
-            elementoDisparador = origen;
-            modal.classList.replace('hidden', 'flex');
-            (modal.querySelector('input:not([type="hidden"]), select') ?? modal.querySelector('button'))?.focus();
-        };
-
-        const cerrarModal = (modal) => {
-            modal.classList.replace('flex', 'hidden');
-            elementoDisparador?.focus();
-        };
-
-        // Cierre al pulsar afuera o en [data-cerrar-modal]
-        modalIndicador.addEventListener('click', (evento) => {
-            if (evento.target === modalIndicador || evento.target.closest('[data-cerrar-modal]')) {
-                cerrarModal(modalIndicador);
-            }
-        });
-
-        // Cierre con tecla Escape
-        document.addEventListener('keydown', (evento) => {
-            if (!modalIndicador.classList.contains('flex')) return;
-
-            if (evento.key === 'Escape') {
-                cerrarModal(modalIndicador);
-            }
-        });
-
-        // Preparar modal para crear o editar
-        const prepararFormulario = (indicador) => {
-            form.querySelectorAll('[data-error]').forEach((err) => err.remove());
-
-            document.getElementById('form-indicador-titulo').textContent = indicador
-                ? `Editar indicador ${indicador.codigo}`
-                : 'Nuevo indicador';
-
-            form.action = indicador ? indicador.url_actualizar : form.dataset.urlCrear;
-            form.elements._method.disabled = !indicador;
-            form.elements.indicador_id.value = indicador?.id ?? '';
-
-            if (indicador) {
-                form.elements.codigo.value = indicador.codigo ?? '';
-                form.elements.nombre.value = indicador.nombre ?? '';
-                form.elements.tipo.value = indicador.tipo ?? 'Meta Sanitaria';
-                form.elements.target_value.value = indicador.target_value ?? '85';
-                form.elements.periodicidad.value = indicador.periodicidad ?? 'Mensual';
-                form.elements.fu.value = indicador.fu ?? 'REM-A';
-                form.elements.numerador_description.value = indicador.numerador_description ?? '';
-                form.elements.denominador_description.value = indicador.denominador_description ?? '';
-                form.elements.is_active.value = indicador.is_active ? '1' : '0';
-            } else {
-                form.elements.codigo.value = '';
-                form.elements.nombre.value = '';
-                form.elements.tipo.value = 'Meta Sanitaria';
-                form.elements.target_value.value = '85';
-                form.elements.periodicidad.value = 'Mensual';
-                form.elements.fu.value = 'REM-A';
-                form.elements.numerador_description.value = '';
-                form.elements.denominador_description.value = '';
-                form.elements.is_active.value = '1';
-            }
-        };
-
-        // Botón "+ Nuevo indicador"
-        document.querySelector('[data-nuevo-indicador]')?.addEventListener('click', (evento) => {
-            prepararFormulario(null);
-            abrirModal(modalIndicador, evento.currentTarget);
-        });
-
-        // Botón "Editar" en las filas de la tabla
-        document.getElementById('iaaps-metas-filas')?.addEventListener('click', (evento) => {
-            const boton = evento.target.closest('[data-accion="editar"]');
-            if (!boton) return;
-
-            const tr = boton.closest('tr');
-            if (!tr || !tr.dataset.indicador) return;
-
-            const datos = JSON.parse(tr.dataset.indicador);
-            prepararFormulario(datos);
-            abrirModal(modalIndicador, boton);
-        });
-
-        // Reabrir modal en caso de error de validación
-        if (modalIndicador.dataset.reabrir === 'true') {
-            abrirModal(modalIndicador, document.querySelector('[data-nuevo-indicador]'));
-        }
     })();
 </script>
 @endpush

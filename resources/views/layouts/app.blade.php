@@ -51,12 +51,78 @@
                         </svg>
                     </button>
 
-                    <button type="button" class="relative text-[#64748B] hover:text-brand-950 p-1" title="Notificaciones" aria-label="Notificaciones">
-                        <svg class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                        </svg>
-                        <span class="absolute right-1 top-1 h-2 w-2 rounded-full border-2 border-white bg-status-bad-fg"></span>
-                    </button>
+                    @php
+                        $usuarioNotificaciones = auth()->user();
+                        $ultimasNotificaciones = $usuarioNotificaciones
+                            ? $usuarioNotificaciones->notificaciones()->latest()->take(10)->get()
+                            : collect();
+                        $notificacionesNoLeidas = $usuarioNotificaciones
+                            ? $usuarioNotificaciones->notificaciones()->noLeidas()->count()
+                            : 0;
+                    @endphp
+
+                    <div class="relative">
+                        <button
+                            type="button"
+                            id="notificaciones-btn"
+                            class="relative text-[#64748B] hover:text-brand-950 p-1"
+                            title="Notificaciones"
+                            aria-label="Notificaciones"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            aria-controls="notificaciones-panel"
+                        >
+                            <svg class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                            </svg>
+                            @if ($notificacionesNoLeidas > 0)
+                                <span id="notificaciones-badge" class="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-status-bad-fg px-1 text-[9px] font-bold leading-none text-white">
+                                    {{ $notificacionesNoLeidas > 9 ? '9+' : $notificacionesNoLeidas }}
+                                </span>
+                            @endif
+                        </button>
+
+                        {{-- Panel de notificaciones (campana del top-bar) --}}
+                        <div
+                            id="notificaciones-panel"
+                            class="absolute right-0 top-full z-50 mt-2 hidden w-80 overflow-hidden rounded-xl border border-[#E2E8F0] bg-white shadow-xl"
+                        >
+                            <div class="flex items-center justify-between border-b border-[#E2E8F0] px-4 py-3">
+                                <p class="text-xs font-bold uppercase tracking-wider text-[#64748B]">Notificaciones</p>
+                                @if ($ultimasNotificaciones->isNotEmpty())
+                                    <span class="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-950">{{ $ultimasNotificaciones->count() }}</span>
+                                @endif
+                            </div>
+
+                            @if ($ultimasNotificaciones->isEmpty())
+                                <p class="px-4 py-6 text-center text-xs text-[#94A3B8]">Sin notificaciones recientes.</p>
+                            @else
+                                <ul class="max-h-80 divide-y divide-[#F1F5F9] overflow-y-auto">
+                                    @foreach ($ultimasNotificaciones as $notificacion)
+                                        <li
+                                            @class([
+                                                'flex items-start gap-3 px-4 py-3',
+                                                'bg-[#F8FAFC]' => $notificacion->leida_en === null,
+                                            ])
+                                            @if ($notificacion->leida_en === null) data-notificacion-no-leida @endif
+                                        >
+                                            <span @class([
+                                                'mt-1 h-2 w-2 shrink-0 rounded-full',
+                                                'bg-status-ok-fg' => $notificacion->tipo === 'success',
+                                                'bg-status-bad-fg' => $notificacion->tipo === 'error',
+                                                'bg-status-warn-fg' => $notificacion->tipo === 'warning',
+                                                'bg-accent-500' => $notificacion->tipo === 'info',
+                                            ])></span>
+                                            <div class="min-w-0">
+                                                <p class="break-words text-sm leading-snug text-brand-950">{{ $notificacion->mensaje }}</p>
+                                                <p class="mt-0.5 text-[11px] text-[#94A3B8]">{{ $notificacion->created_at?->diffForHumans() ?? 'Ahora' }}</p>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        </div>
+                    </div>
 
                     <button type="button" class="flex items-center gap-2 text-[#64748B] hover:text-brand-950" title="Mi perfil" aria-label="Mi perfil">
                         <span class="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-accent-500 text-xs sm:text-sm font-semibold text-white">
@@ -77,12 +143,6 @@
                         <p class="mt-1 text-xs sm:text-sm text-[#64748B]">@yield('page-subtitle')</p>
                     @endif
                 </div>
-
-                @if (session('status'))
-                    <div class="mb-6 rounded-md border border-[#BFE0D2] bg-status-ok-bg px-4 py-3 text-sm text-brand-950">
-                        {{ session('status') }}
-                    </div>
-                @endif
 
                 @yield('content')
             </main>
@@ -130,6 +190,56 @@
                 closeSidebar();
             }
         });
+
+        // Panel de notificaciones (campana del top-bar)
+        const notificacionesBtn = document.getElementById('notificaciones-btn');
+        const notificacionesPanel = document.getElementById('notificaciones-panel');
+        const notificacionesBadge = document.getElementById('notificaciones-badge');
+        let notificacionesMarcadas = false;
+
+        const marcarNotificacionesLeidas = () => {
+            if (notificacionesMarcadas || !notificacionesBadge) return;
+
+            notificacionesMarcadas = true;
+            notificacionesBadge.remove();
+
+            notificacionesPanel?.querySelectorAll('[data-notificacion-no-leida]').forEach((item) => {
+                item.classList.remove('bg-[#F8FAFC]');
+                item.removeAttribute('data-notificacion-no-leida');
+            });
+
+            fetch(@json(route('notificaciones.leer')), {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+                    'Accept': 'application/json',
+                },
+            }).catch(() => {});
+        };
+
+        if (notificacionesBtn && notificacionesPanel) {
+            notificacionesBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const abierto = !notificacionesPanel.classList.contains('hidden');
+                notificacionesPanel.classList.toggle('hidden', abierto);
+                notificacionesBtn.setAttribute('aria-expanded', String(!abierto));
+                if (!abierto) marcarNotificacionesLeidas();
+            });
+
+            document.addEventListener('click', (e) => {
+                if (notificacionesPanel.classList.contains('hidden')) return;
+                if (notificacionesPanel.contains(e.target) || notificacionesBtn.contains(e.target)) return;
+                notificacionesPanel.classList.add('hidden');
+                notificacionesBtn.setAttribute('aria-expanded', 'false');
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !notificacionesPanel.classList.contains('hidden')) {
+                    notificacionesPanel.classList.add('hidden');
+                    notificacionesBtn.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
     });
     </script>
 
@@ -142,11 +252,8 @@
                 icon: 'success',
                 title: '¡Operación Exitosa!',
                 text: @json(session('status')),
-                timer: 4000,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end',
-                timerProgressBar: true
+                confirmButtonColor: '#0f1424',
+                confirmButtonText: 'Entendido'
             });
         @endif
 
@@ -155,11 +262,8 @@
                 icon: 'success',
                 title: '¡Operación Exitosa!',
                 text: @json(session('success')),
-                timer: 4000,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end',
-                timerProgressBar: true
+                confirmButtonColor: '#0f1424',
+                confirmButtonText: 'Entendido'
             });
         @endif
 

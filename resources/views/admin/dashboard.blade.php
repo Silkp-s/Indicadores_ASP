@@ -7,16 +7,7 @@
 @section('content')
 <div class="space-y-6">
 
-    {{-- Notificaciones flash de éxito o error --}}
-    @if (session('status'))
-        <div class="flex items-center gap-3 rounded-xl border border-status-ok-fg/30 bg-status-ok-bg p-4 text-sm font-medium text-status-ok-fg shadow-xs">
-            <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{{ session('status') }}</span>
-        </div>
-    @endif
-
+    {{-- Errores de validación --}}
     @if ($errors->any())
         <div class="flex items-start gap-3 rounded-xl border border-status-bad-fg/30 bg-status-bad-bg p-4 text-sm text-status-bad-fg shadow-xs">
             <svg class="h-5 w-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -79,29 +70,7 @@
             </span>
         </a>
 
-        {{-- Pestaña 3: Mapeo de Celdas REM --}}
-        <a
-            href="{{ route('admin.dashboard', ['tab' => 'rem']) }}"
-            @class([
-                'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all',
-                'bg-brand-950 text-white shadow-xs' => $tab === 'rem',
-                'bg-white text-[#64748B] hover:text-brand-950 hover:bg-[#F1F5F9] border border-[#E2E8F0]' => $tab !== 'rem',
-            ])
-        >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
-            </svg>
-            <span>Sección 3: Mapeo de Celdas REM</span>
-            <span @class([
-                'ml-1 rounded-full px-2 py-0.5 text-xs font-bold',
-                'bg-white/20 text-white' => $tab === 'rem',
-                'bg-[#F1F5F9] text-brand-950' => $tab !== 'rem',
-            ])>
-                {{ $stats['total_mapeos_rem'] }}
-            </span>
-        </a>
-
-        {{-- Pestaña 4: Establecimientos --}}
+        {{-- Pestaña 3: Establecimientos --}}
         <a
             href="{{ route('admin.dashboard', ['tab' => 'establecimientos']) }}"
             @class([
@@ -113,13 +82,35 @@
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
             </svg>
-            <span>Sección 4: Establecimientos</span>
+            <span>Sección 3: Establecimientos</span>
             <span @class([
                 'ml-1 rounded-full px-2 py-0.5 text-xs font-bold',
                 'bg-white/20 text-white' => $tab === 'establecimientos',
                 'bg-[#F1F5F9] text-brand-950' => $tab !== 'establecimientos',
             ])>
                 {{ $stats['total_establecimientos'] }}
+            </span>
+        </a>
+
+        {{-- Pestaña 4: Mapeo de Celdas REM --}}
+        <a
+            href="{{ route('admin.dashboard', ['tab' => 'rem']) }}"
+            @class([
+                'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all',
+                'bg-brand-950 text-white shadow-xs' => $tab === 'rem',
+                'bg-white text-[#64748B] hover:text-brand-950 hover:bg-[#F1F5F9] border border-[#E2E8F0]' => $tab !== 'rem',
+            ])
+        >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
+            </svg>
+            <span>Sección 4: Mapeo de Celdas REM</span>
+            <span @class([
+                'ml-1 rounded-full px-2 py-0.5 text-xs font-bold',
+                'bg-white/20 text-white' => $tab === 'rem',
+                'bg-[#F1F5F9] text-brand-950' => $tab !== 'rem',
+            ])>
+                {{ $stats['total_mapeos_rem'] }}
             </span>
         </a>
     </div>
@@ -187,15 +178,16 @@
                 </form>
 
                 <div>
-                    <a
-                        href="{{ route('admin.users.create') }}"
+                    <button
+                        type="button"
+                        data-abrir-nuevo-usuario
                         class="flex items-center gap-2 rounded-lg bg-brand-950 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-brand-800 transition-colors"
                     >
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                         </svg>
                         <span>Nuevo usuario</span>
-                    </a>
+                    </button>
                 </div>
             </div>
 
@@ -212,9 +204,19 @@
                                 <th class="px-5 py-3.5 text-right">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-[#E2E8F0]">
+                        <tbody class="divide-y divide-[#E2E8F0]" id="usuarios-admin-filas">
                             @forelse ($users as $user)
-                                <tr class="hover:bg-[#F8FAFC]/80 transition-colors">
+                                @php
+                                    $usuarioJson = json_encode([
+                                        'id' => $user->id,
+                                        'name' => $user->name,
+                                        'apellido' => $user->apellido,
+                                        'email' => $user->email,
+                                        'role' => $user->roles->first()?->name ?? 'Usuario',
+                                        'url_actualizar' => route('admin.users.update', $user),
+                                    ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+                                @endphp
+                                <tr class="hover:bg-[#F8FAFC]/80 transition-colors" data-usuario="{{ $usuarioJson }}">
                                     <td class="px-5 py-4">
                                         <div class="flex items-center gap-3">
                                             <div class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 font-bold text-brand-950 text-xs">
@@ -249,14 +251,18 @@
                                         {{ $user->created_at?->format('d/m/Y H:i') ?? '—' }}
                                     </td>
                                     <td class="px-5 py-4 text-right whitespace-nowrap">
-                                        <div class="flex items-center justify-end gap-2">
-                                            <a
-                                                href="{{ route('admin.users.edit', $user) }}"
-                                                class="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-accent-600 transition-colors"
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            <button
+                                                type="button"
+                                                data-accion="editar-usuario"
+                                                class="rounded-lg p-1.5 text-[#64748B] hover:bg-[#F1F5F9] hover:text-brand-950 transition-colors"
                                                 title="Editar datos y roles"
+                                                aria-label="Editar usuario"
                                             >
-                                                Editar
-                                            </a>
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
+                                            </button>
                                             @if ($user->id !== auth()->id())
                                                 <form
                                                     method="POST"
@@ -270,10 +276,13 @@
                                                     @method('DELETE')
                                                     <button
                                                         type="submit"
-                                                        class="rounded-lg border border-status-bad-fg/30 bg-status-bad-bg px-2.5 py-1.5 text-xs font-semibold text-status-bad-fg hover:bg-status-bad-fg/15 transition-colors"
+                                                        class="rounded-lg p-1.5 text-status-bad-fg hover:bg-status-bad-bg/60 transition-colors"
                                                         title="Eliminar usuario"
+                                                        aria-label="Eliminar usuario"
                                                     >
-                                                        Eliminar
+                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
                                                     </button>
                                                 </form>
                                             @endif
@@ -468,28 +477,43 @@
                                         @endif
                                     </td>
                                     <td class="px-5 py-3.5 text-right whitespace-nowrap">
-                                        <div class="flex items-center justify-end gap-2">
+                                        <div class="flex items-center justify-end gap-1.5">
                                             {{-- Botón Editar --}}
                                             <button
                                                 type="button"
                                                 data-accion="editar-indicador"
-                                                class="rounded-lg border border-[#CBD5E1] bg-white px-2.5 py-1 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-accent-600 transition-colors"
+                                                class="rounded-lg p-1.5 text-[#64748B] hover:bg-[#F1F5F9] hover:text-brand-950 transition-colors"
                                                 title="Editar indicador"
+                                                aria-label="Editar indicador"
                                             >
-                                                Editar
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
                                             </button>
 
                                             {{-- Cambiar Estado --}}
-                                            <form method="POST" action="{{ route('admin.indicadores.estado', $ind) }}" class="inline">
+                                            <form
+                                                method="POST"
+                                                action="{{ route('admin.indicadores.estado', $ind) }}"
+                                                class="inline"
+                                                data-confirmar="{{ $ind->is_active ? '¿Está seguro que desea cambiar el estado a inactivo?' : '¿Está seguro que desea cambiar el estado a activo?' }}"
+                                            >
                                                 @csrf
                                                 @method('PATCH')
                                                 <input type="hidden" name="is_active" value="{{ $ind->is_active ? 0 : 1 }}">
                                                 <button
                                                     type="submit"
-                                                    class="rounded-lg border border-[#CBD5E1] bg-white px-2 py-1 text-xs font-medium text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                                                    @class([
+                                                        'rounded-lg p-1.5 transition-colors',
+                                                        'text-status-warn-fg hover:bg-status-warn-bg/60' => $ind->is_active,
+                                                        'text-status-ok-fg hover:bg-status-ok-bg/60' => ! $ind->is_active,
+                                                    ])
                                                     title="{{ $ind->is_active ? 'Desactivar' : 'Activar' }}"
+                                                    aria-label="{{ $ind->is_active ? 'Desactivar indicador' : 'Activar indicador' }}"
                                                 >
-                                                    {{ $ind->is_active ? 'Desactivar' : 'Activar' }}
+                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                                                    </svg>
                                                 </button>
                                             </form>
 
@@ -506,10 +530,13 @@
                                                 @method('DELETE')
                                                 <button
                                                     type="submit"
-                                                    class="rounded-lg border border-status-bad-fg/30 bg-status-bad-bg px-2.5 py-1 text-xs font-semibold text-status-bad-fg hover:bg-status-bad-fg/15 transition-colors"
+                                                    class="rounded-lg p-1.5 text-status-bad-fg hover:bg-status-bad-bg/60 transition-colors"
                                                     title="Eliminar"
+                                                    aria-label="Eliminar indicador"
                                                 >
-                                                    Eliminar
+                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
                                                 </button>
                                             </form>
                                         </div>
@@ -539,7 +566,7 @@
     @endif
 
     {{-- ========================================================================= --}}
-    {{-- SECCIÓN 3: CONFIGURACIÓN DE MAPEO DE CELDAS REM                           --}}
+    {{-- SECCIÓN 4: CONFIGURACIÓN DE MAPEO DE CELDAS REM                           --}}
     {{-- ========================================================================= --}}
     @if ($tab === 'rem')
         <div class="space-y-6">
@@ -710,28 +737,43 @@
 
                                     {{-- Acciones --}}
                                     <td class="px-5 py-3.5 text-right whitespace-nowrap">
-                                        <div class="flex items-center justify-end gap-2">
+                                        <div class="flex items-center justify-end gap-1.5">
                                             {{-- Editar --}}
                                             <button
                                                 type="button"
                                                 data-accion="editar-rem"
-                                                class="rounded-lg border border-[#CBD5E1] bg-white px-2.5 py-1 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-accent-600 transition-colors"
+                                                class="rounded-lg p-1.5 text-[#64748B] hover:bg-[#F1F5F9] hover:text-brand-950 transition-colors"
                                                 title="Modificar celdas de extracción"
+                                                aria-label="Editar mapeo REM"
                                             >
-                                                Editar
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
                                             </button>
 
                                             {{-- Cambiar estado --}}
-                                            <form method="POST" action="{{ route('admin.rem-mappings.estado', $map) }}" class="inline">
+                                            <form
+                                                method="POST"
+                                                action="{{ route('admin.rem-mappings.estado', $map) }}"
+                                                class="inline"
+                                                data-confirmar="{{ $map->is_active ? '¿Está seguro que desea cambiar el estado a inactivo?' : '¿Está seguro que desea cambiar el estado a activo?' }}"
+                                            >
                                                 @csrf
                                                 @method('PATCH')
                                                 <input type="hidden" name="is_active" value="{{ $map->is_active ? 0 : 1 }}">
                                                 <button
                                                     type="submit"
-                                                    class="rounded-lg border border-[#CBD5E1] bg-white px-2 py-1 text-xs font-medium text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                                                    @class([
+                                                        'rounded-lg p-1.5 transition-colors',
+                                                        'text-status-warn-fg hover:bg-status-warn-bg/60' => $map->is_active,
+                                                        'text-status-ok-fg hover:bg-status-ok-bg/60' => ! $map->is_active,
+                                                    ])
                                                     title="{{ $map->is_active ? 'Desactivar mapeo' : 'Activar mapeo' }}"
+                                                    aria-label="{{ $map->is_active ? 'Desactivar mapeo' : 'Activar mapeo' }}"
                                                 >
-                                                    {{ $map->is_active ? 'Desactivar' : 'Activar' }}
+                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                                                    </svg>
                                                 </button>
                                             </form>
 
@@ -748,10 +790,13 @@
                                                 @method('DELETE')
                                                 <button
                                                     type="submit"
-                                                    class="rounded-lg border border-status-bad-fg/30 bg-status-bad-bg px-2.5 py-1 text-xs font-semibold text-status-bad-fg hover:bg-status-bad-fg/15 transition-colors"
+                                                    class="rounded-lg p-1.5 text-status-bad-fg hover:bg-status-bad-bg/60 transition-colors"
                                                     title="Eliminar mapeo"
+                                                    aria-label="Eliminar mapeo"
                                                 >
-                                                    Eliminar
+                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
                                                 </button>
                                             </form>
                                         </div>
@@ -781,7 +826,7 @@
     @endif
 
     {{-- ========================================================================= --}}
-    {{-- SECCIÓN 4: ESTABLECIMIENTOS DE SALUD                                      --}}
+    {{-- SECCIÓN 3: ESTABLECIMIENTOS DE SALUD                                      --}}
     {{-- ========================================================================= --}}
     @if ($tab === 'establecimientos')
         <div class="space-y-6">
@@ -940,28 +985,43 @@
                                         @endif
                                     </td>
                                     <td class="px-5 py-3.5 text-right whitespace-nowrap">
-                                        <div class="flex items-center justify-end gap-2">
+                                        <div class="flex items-center justify-end gap-1.5">
                                             {{-- Editar --}}
                                             <button
                                                 type="button"
                                                 data-accion="editar-establecimiento"
-                                                class="rounded-lg border border-[#CBD5E1] bg-white px-2.5 py-1 text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:text-accent-600 transition-colors"
+                                                class="rounded-lg p-1.5 text-[#64748B] hover:bg-[#F1F5F9] hover:text-brand-950 transition-colors"
                                                 title="Editar establecimiento"
+                                                aria-label="Editar establecimiento"
                                             >
-                                                Editar
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
                                             </button>
 
                                             {{-- Cambiar estado --}}
-                                            <form method="POST" action="{{ route('admin.establecimientos.estado', $est) }}" class="inline">
+                                            <form
+                                                method="POST"
+                                                action="{{ route('admin.establecimientos.estado', $est) }}"
+                                                class="inline"
+                                                data-confirmar="{{ $est->is_active ? '¿Está seguro que desea cambiar el estado a inactivo?' : '¿Está seguro que desea cambiar el estado a activo?' }}"
+                                            >
                                                 @csrf
                                                 @method('PATCH')
                                                 <input type="hidden" name="is_active" value="{{ $est->is_active ? 0 : 1 }}">
                                                 <button
                                                     type="submit"
-                                                    class="rounded-lg border border-[#CBD5E1] bg-white px-2 py-1 text-xs font-medium text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+                                                    @class([
+                                                        'rounded-lg p-1.5 transition-colors',
+                                                        'text-status-warn-fg hover:bg-status-warn-bg/60' => $est->is_active,
+                                                        'text-status-ok-fg hover:bg-status-ok-bg/60' => ! $est->is_active,
+                                                    ])
                                                     title="{{ $est->is_active ? 'Desactivar' : 'Activar' }}"
+                                                    aria-label="{{ $est->is_active ? 'Desactivar establecimiento' : 'Activar establecimiento' }}"
                                                 >
-                                                    {{ $est->is_active ? 'Desactivar' : 'Activar' }}
+                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                                                    </svg>
                                                 </button>
                                             </form>
 
@@ -978,10 +1038,13 @@
                                                 @method('DELETE')
                                                 <button
                                                     type="submit"
-                                                    class="rounded-lg border border-status-bad-fg/30 bg-status-bad-bg px-2.5 py-1 text-xs font-semibold text-status-bad-fg hover:bg-status-bad-fg/15 transition-colors"
+                                                    class="rounded-lg p-1.5 text-status-bad-fg hover:bg-status-bad-bg/60 transition-colors"
                                                     title="Eliminar establecimiento"
+                                                    aria-label="Eliminar establecimiento"
                                                 >
-                                                    Eliminar
+                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
                                                 </button>
                                             </form>
                                         </div>
@@ -1013,6 +1076,7 @@
 </div>
 
 {{-- Modales de administración --}}
+@include('admin.partials.modal-usuario')
 @include('admin.partials.modal-indicador')
 @include('admin.partials.modal-rem-mapping')
 @include('admin.partials.modal-establecimiento')
@@ -1022,6 +1086,68 @@
 @push('scripts')
 <script>
     (() => {
+        // ==========================================
+        // Modal Usuario
+        // ==========================================
+        const modalUsuario = document.getElementById('modal-admin-usuario');
+        const formUsuario = document.getElementById('form-admin-usuario');
+
+        const abrirModalUsuario = () => {
+            modalUsuario.classList.replace('hidden', 'flex');
+            (modalUsuario.querySelector('input:not([type="hidden"]), select') ?? modalUsuario.querySelector('button'))?.focus();
+        };
+
+        const cerrarModalUsuario = () => {
+            modalUsuario.classList.replace('flex', 'hidden');
+        };
+
+        modalUsuario?.addEventListener('click', (e) => {
+            if (e.target === modalUsuario || e.target.closest('[data-cerrar-modal-usuario]')) {
+                cerrarModalUsuario();
+            }
+        });
+
+        const prepararFormularioUsuario = (usuario) => {
+            formUsuario.reset();
+
+            document.getElementById('form-admin-usuario-titulo').textContent = usuario ? 'Editar Usuario' : 'Nuevo Usuario';
+            document.getElementById('form-admin-usuario-subtitulo').textContent = usuario
+                ? 'Modifique los datos y el rol de la cuenta'
+                : 'Registre una cuenta y asígnele un único rol';
+            document.getElementById('form-admin-usuario-submit').textContent = usuario ? 'Guardar cambios' : 'Crear usuario';
+
+            formUsuario.action = usuario ? usuario.url_actualizar : formUsuario.dataset.urlCrear;
+            formUsuario.elements._method.disabled = !usuario;
+            formUsuario.elements.usuario_id.value = usuario?.id ?? '';
+
+            formUsuario.elements.password.required = !usuario;
+            formUsuario.elements.password_confirmation.required = !usuario;
+            document.getElementById('campo-usuario-password-hint').hidden = !usuario;
+
+            if (usuario) {
+                formUsuario.elements.name.value = usuario.name ?? '';
+                formUsuario.elements.apellido.value = usuario.apellido ?? '';
+                formUsuario.elements.email.value = usuario.email ?? '';
+                formUsuario.elements.role.value = usuario.role ?? 'Usuario';
+            }
+        };
+
+        document.querySelector('[data-abrir-nuevo-usuario]')?.addEventListener('click', () => {
+            prepararFormularioUsuario(null);
+            abrirModalUsuario();
+        });
+
+        document.getElementById('usuarios-admin-filas')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-accion="editar-usuario"]');
+            if (!btn) return;
+
+            const tr = btn.closest('tr');
+            if (!tr || !tr.dataset.usuario) return;
+
+            prepararFormularioUsuario(JSON.parse(tr.dataset.usuario));
+            abrirModalUsuario();
+        });
+
         // ==========================================
         // Modal Indicador (Metas e IAAPS)
         // ==========================================
@@ -1211,6 +1337,7 @@
         // Cierre con Escape para cualquier modal
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                if (modalUsuario?.classList.contains('flex')) cerrarModalUsuario();
                 if (modalIndicador?.classList.contains('flex')) cerrarModalIndicador();
                 if (modalRem?.classList.contains('flex')) cerrarModalRem();
                 if (modalEstablecimiento?.classList.contains('flex')) cerrarModalEstablecimiento();

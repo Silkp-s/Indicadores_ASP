@@ -130,7 +130,6 @@ class IaapsMetasController extends Controller
             'tipos' => ['Meta Sanitaria', 'IAAPS'],
             'periodicidades' => Indicador::PERIODICIDADES,
             'fuentes' => Indicador::FUENTES,
-            'esAdmin' => $request->user()->hasRole('Admin'),
         ]);
     }
 

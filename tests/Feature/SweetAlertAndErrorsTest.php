@@ -80,8 +80,8 @@ test('formulario de eliminacion de establecimientos en el panel admin incluye co
         ->assertSee('data-swal-confirm="Sí, eliminar"', false);
 });
 
-test('modulo iaaps-metas cuenta con boton de eliminacion protegido con confirmacion SweetAlert', function () {
-    $ind = Indicador::create([
+test('el modulo iaaps-metas es de solo lectura: no muestra columna de acciones', function () {
+    Indicador::create([
         'codigo' => 'MS-TEST',
         'nombre' => 'Meta de Prueba SweetAlert',
         'tipo' => 'Meta Sanitaria',
@@ -94,6 +94,30 @@ test('modulo iaaps-metas cuenta con boton de eliminacion protegido con confirmac
     $response = $this->actingAs($this->admin)->get(route('iaaps-metas.index'));
 
     $response->assertOk()
-        ->assertSee('form-eliminar')
-        ->assertSee('data-swal-title="¿Eliminar indicador MS-TEST?"', false);
+        ->assertSee('MS-TEST')
+        ->assertDontSee('data-accion="editar"', false)
+        ->assertDontSee('data-swal-title="¿Eliminar indicador MS-TEST?"', false);
+});
+
+test('el cambio de estado de un establecimiento pide confirmacion con SweetAlert', function () {
+    Establecimiento::factory()->create(['is_active' => true]);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.dashboard', ['tab' => 'establecimientos']))
+        ->assertOk()
+        ->assertSee('data-confirmar="¿Está seguro que desea cambiar el estado a inactivo?"', false);
+});
+
+test('el mensaje flash se confirma con un popup de SweetAlert y no con un toast', function () {
+    $response = $this->actingAs($this->admin)
+        ->withSession(['status' => 'Registro eliminado exitosamente'])
+        ->get(route('admin.dashboard'));
+
+    $response->assertOk()
+        ->assertSee('id="notificaciones-panel"', false)
+        ->assertSee('Registro eliminado exitosamente');
+
+    // El pop-up de confirmación de SweetAlert ya no es un toast (no se ancla arriba a la derecha).
+    $response->assertDontSee('toast: true', false)
+        ->assertDontSee("position: 'top-end'", false);
 });

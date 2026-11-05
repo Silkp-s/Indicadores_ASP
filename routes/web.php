@@ -7,6 +7,7 @@ use App\Http\Controllers\DeisController;
 use App\Http\Controllers\EstablecimientoController;
 use App\Http\Controllers\IaapsMetasController;
 use App\Http\Controllers\ImportacionController;
+use App\Http\Controllers\NotificacionController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -98,6 +99,9 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::post('/alertas/evaluar', [AlertaController::class, 'evaluar'])->name('alertas.evaluar');
     Route::patch('/alertas/{alerta}', [AlertaController::class, 'update'])->name('alertas.update')->whereNumber('alerta');
 
+    // Notificaciones de la campana del top-bar
+    Route::post('/notificaciones/leer', [NotificacionController::class, 'leerTodas'])->name('notificaciones.leer');
+
     Route::get('/configuracion', function () {
         return view('en-construccion', ['titulo' => 'Configuración']); // TODO: vista de Configuración
     })->name('configuracion');
@@ -112,11 +116,8 @@ Route::middleware(['auth', 'admin_only'])->prefix('admin')->name('admin.')->grou
     Route::get('/', [AdminController::class, 'index'])->name('dashboard');
 
     // Sección 1 · Usuarios
-    Route::get('/users/create', [AdminController::class, 'create'])->name('users.create');
     Route::post('/users', [AdminController::class, 'store'])->name('users.store');
-    Route::get('/users/{user}/edit', [AdminController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [AdminController::class, 'update'])->name('users.update');
-    Route::post('/users/{user}/reset-password', [AdminController::class, 'resetPassword'])->name('users.reset-password');
     Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');
 
     // Sección 2 · Metas Sanitarias e IAAPS

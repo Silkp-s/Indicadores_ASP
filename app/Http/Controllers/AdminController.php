@@ -14,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
-use Spatie\Permission\Models\Role;
 
 class AdminController extends Controller
 {
@@ -142,18 +141,12 @@ class AdminController extends Controller
             'estadoEst' => $estadoEst,
             'tiposEstablecimiento' => Establecimiento::TIPOS,
             'stats' => $stats,
-            'roles' => Role::all(),
         ]);
     }
 
     // ==========================================
     // SECCIÓN 1: USUARIOS
     // ==========================================
-
-    public function create(): View
-    {
-        return view('admin.users.create');
-    }
 
     public function store(Request $request): RedirectResponse
     {
@@ -162,8 +155,7 @@ class AdminController extends Controller
             'apellido' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => ['required', 'confirmed', Password::defaults()],
-            'roles' => 'required|array',
-            'roles.*' => 'exists:roles,name',
+            'role' => ['required', 'string', 'exists:roles,name'],
         ]);
 
         $user = User::create([
@@ -174,15 +166,10 @@ class AdminController extends Controller
             'email_verified_at' => now(),
         ]);
 
-        $user->syncRoles($request->roles);
+        $user->syncRoles([$request->role]);
 
         return redirect()->route('admin.dashboard', ['tab' => 'usuarios'])
             ->with('status', "Usuario {$user->name} {$user->apellido} creado correctamente.");
-    }
-
-    public function edit(User $user): View
-    {
-        return view('admin.users.edit', compact('user'));
     }
 
     public function update(Request $request, User $user): RedirectResponse
@@ -191,8 +178,8 @@ class AdminController extends Controller
             'name' => 'required|string|max:255',
             'apellido' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
-            'roles' => 'array',
-            'roles.*' => 'exists:roles,name',
+            'password' => ['nullable', 'confirmed', Password::defaults()],
+            'role' => ['required', 'string', 'exists:roles,name'],
         ]);
 
         $user->update([
@@ -201,25 +188,14 @@ class AdminController extends Controller
             'email' => $request->email,
         ]);
 
-        if ($request->has('roles')) {
-            $user->syncRoles($request->roles);
+        if ($request->filled('password')) {
+            $user->update(['password' => Hash::make($request->password)]);
         }
+
+        $user->syncRoles([$request->role]);
 
         return redirect()->route('admin.dashboard', ['tab' => 'usuarios'])
             ->with('status', "Usuario {$user->name} actualizado correctamente.");
-    }
-
-    public function resetPassword(Request $request, User $user): RedirectResponse
-    {
-        $request->validate([
-            'password' => ['required', 'confirmed', Password::defaults()],
-        ]);
-
-        $user->update([
-            'password' => Hash::make($request->password),
-        ]);
-
-        return back()->with('status', "Contraseña de {$user->name} restablecida correctamente.");
     }
 
     public function destroy(User $user): RedirectResponse

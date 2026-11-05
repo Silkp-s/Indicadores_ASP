@@ -7,6 +7,7 @@ use App\Models\RemMapping;
 use App\Models\User;
 use App\Services\RemReaderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use Spatie\Permission\Models\Role;
 
@@ -41,8 +42,8 @@ test('un administrador puede ver el panel con las 4 secciones', function () {
         ->assertSee('Panel de Administración')
         ->assertSee('Sección 1: Usuarios')
         ->assertSee('Sección 2: Metas Sanitarias e IAAPS')
-        ->assertSee('Sección 3: Mapeo de Celdas REM')
-        ->assertSee('Sección 4: Establecimientos');
+        ->assertSee('Sección 3: Establecimientos')
+        ->assertSee('Sección 4: Mapeo de Celdas REM');
 });
 
 test('seccion 1: el admin puede crear, editar y eliminar usuarios', function () {
@@ -54,7 +55,7 @@ test('seccion 1: el admin puede crear, editar y eliminar usuarios', function () 
             'email' => 'fgonzalez@salud.cl',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'roles' => ['Usuario'],
+            'role' => 'Usuario',
         ]);
 
     $response->assertRedirect(route('admin.dashboard', ['tab' => 'usuarios']));
@@ -68,12 +69,13 @@ test('seccion 1: el admin puede crear, editar y eliminar usuarios', function () 
             'name' => 'Dr. Fernando Modificado',
             'apellido' => 'González',
             'email' => 'fgonzalez@salud.cl',
-            'roles' => ['Admin'],
+            'role' => 'Admin',
         ])
         ->assertRedirect(route('admin.dashboard', ['tab' => 'usuarios']));
 
     expect($newUser->fresh()->name)->toBe('Dr. Fernando Modificado')
-        ->and($newUser->fresh()->hasRole('Admin'))->toBeTrue();
+        ->and($newUser->fresh()->hasRole('Admin'))->toBeTrue()
+        ->and($newUser->fresh()->roles)->toHaveCount(1);
 
     // 3. No puede eliminarse a sí mismo
     $this->actingAs($this->admin)
@@ -86,6 +88,24 @@ test('seccion 1: el admin puede crear, editar y eliminar usuarios', function () 
         ->assertRedirect(route('admin.dashboard', ['tab' => 'usuarios']));
 
     $this->assertDatabaseMissing('users', ['id' => $newUser->id]);
+});
+
+test('seccion 1: el admin puede cambiar la contrasena al editar un usuario', function () {
+    $user = User::factory()->create(['password' => Hash::make('password123')]);
+    $user->assignRole('Usuario');
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.users.update', $user), [
+            'name' => $user->name,
+            'apellido' => $user->apellido,
+            'email' => $user->email,
+            'role' => 'Usuario',
+            'password' => 'nuevaClave456',
+            'password_confirmation' => 'nuevaClave456',
+        ])
+        ->assertRedirect(route('admin.dashboard', ['tab' => 'usuarios']));
+
+    expect(Hash::check('nuevaClave456', $user->fresh()->password))->toBeTrue();
 });
 
 test('seccion 2: el admin puede crear, actualizar, cambiar estado y eliminar metas e IAAPS', function () {
