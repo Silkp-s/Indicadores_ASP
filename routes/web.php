@@ -69,6 +69,8 @@ Route::post('/logout', function () {
 */
 Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::get('/centro-mando', [CentroMandoController::class, 'index'])->name('centro-mando');
+    Route::get('/centro-mando/exportar/excel', [CentroMandoController::class, 'exportarExcel'])->name('centro-mando.exportar.excel');
+    Route::get('/centro-mando/exportar/pdf', [CentroMandoController::class, 'exportarPdf'])->name('centro-mando.exportar.pdf');
 
     // Módulo 2 · IAAPS y Metas Sanitarias
     Route::get('/iaaps-metas', [IaapsMetasController::class, 'index'])->name('iaaps-metas.index');

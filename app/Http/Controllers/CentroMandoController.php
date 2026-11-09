@@ -7,6 +7,9 @@ use App\Models\IndicadorMedida;
 use App\Services\ProyeccionEstadisticaService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class CentroMandoController extends Controller
 {
@@ -18,6 +21,124 @@ class CentroMandoController extends Controller
      * Muestra el Dashboard Ejecutivo comunal con gráficos, KPIs y los indicadores principales/críticos del momento.
      */
     public function index(Request $request): View
+    {
+        return view('centro-mando.index', $this->datosDashboard($request));
+    }
+
+    /**
+     * Exporta el resumen, los indicadores y el detalle de predicciones a un archivo Excel (.xlsx).
+     */
+    public function exportarExcel(Request $request): BinaryFileResponse
+    {
+        $datos = $this->datosDashboard($request);
+        $proyecciones = $datos['proyecciones'];
+        $resumenProyeccion = $proyecciones['resumen'] ?? [];
+
+        $spreadsheet = new Spreadsheet;
+        $spreadsheet->getProperties()
+            ->setTitle('Centro de Mando Ejecutivo')
+            ->setDescription('Reporte de cumplimiento y predicciones')
+            ->setCreator(config('app.name'));
+
+        $resumen = $spreadsheet->getActiveSheet();
+        $resumen->setTitle('Resumen');
+        $resumen->fromArray([
+            ['Centro de Mando Ejecutivo'],
+            ['Periodo', $datos['periodoSeleccionado']],
+            ['Establecimiento', $datos['establecimientoNombre']],
+            [],
+            ['Indicador', 'Valor'],
+            ['Total de mediciones', $datos['totalMediciones']],
+            ['Cumpliendo', $datos['cumpliendoCount']],
+            ['En Riesgo', $datos['enRiesgoCount']],
+            ['Crítico', $datos['criticoCount']],
+            ['Cumplimiento promedio (%)', $datos['cumplimientoPromedio']],
+            ['Población beneficiaria', $datos['poblacionBeneficiaria']],
+            [],
+            ['Predicción a Diciembre (mes 12)'],
+            ['Total evaluados', $resumenProyeccion['total_evaluados'] ?? 0],
+            ['Cumplirán meta', $resumenProyeccion['cumpliran_count'] ?? 0],
+            ['En riesgo al cierre', $resumenProyeccion['en_riesgo_count'] ?? 0],
+            ['Críticos al cierre', $resumenProyeccion['criticos_count'] ?? 0],
+            ['Tasa de éxito proyectada (%)', $resumenProyeccion['tasa_exito_proyectada'] ?? 0],
+            ['Cumplimiento promedio proyectado (%)', $resumenProyeccion['cumplimiento_promedio_proyectado'] ?? 0],
+        ]);
+
+        $indicadores = $spreadsheet->createSheet();
+        $indicadores->setTitle('Indicadores');
+        $indicadores->fromArray([
+            ['Código', 'Nombre', 'Tipo', 'Establecimiento', 'Numerador', 'Denominador', 'Cumplimiento (%)', 'Meta (%)', 'Estado', 'Brecha'],
+        ]);
+
+        foreach ($datos['medidas'] as $medida) {
+            $indicadores->fromArray([
+                $medida->indicador?->codigo ?? 'N/A',
+                $medida->indicador?->nombre ?? 'Sin nombre',
+                $medida->indicador?->tipo ?? 'Meta',
+                $medida->establecimiento?->nombre ?? 'N/A',
+                (float) $medida->numerador_value,
+                (float) $medida->denominador_value,
+                (float) $medida->porcentaje_cumplimiento,
+                (float) ($medida->indicador?->target_value ?? 100),
+                $medida->status,
+                round((float) $medida->porcentaje_cumplimiento - (float) ($medida->indicador?->target_value ?? 100), 1),
+            ]);
+        }
+
+        $predicciones = $spreadsheet->createSheet();
+        $predicciones->setTitle('Predicciones');
+        $predicciones->fromArray([
+            ['Código', 'Nombre', 'Tipo', 'Cumplimiento actual (%)', 'Regresión lineal (%)', 'Media móvil (%)', 'Proyección anual (%)', 'Brecha proyectada', 'Estado anticipado', 'Mes logro estimado', 'Confianza modelo (%)', 'Alerta ejecutiva'],
+        ]);
+
+        foreach ($proyecciones['indicadores_proyectados'] ?? [] as $proyeccion) {
+            $predicciones->fromArray([
+                $proyeccion['codigo'] ?? 'N/A',
+                $proyeccion['nombre'] ?? 'Sin nombre',
+                $proyeccion['tipo'] ?? 'Meta',
+                $proyeccion['cumplimiento_actual'] ?? null,
+                $proyeccion['regresion']['proyeccion_mes_12'] ?? null,
+                $proyeccion['media_movil']['proyeccion_mes_12'] ?? null,
+                $proyeccion['proyeccion_anual'] ?? null,
+                $proyeccion['brecha_proyectada'] ?? null,
+                $proyeccion['estado_anticipado'] ?? null,
+                $proyeccion['mes_logro_estimado'] ?? null,
+                $proyeccion['confianza_modelo'] ?? null,
+                $proyeccion['alerta_ejecutiva'] ?? null,
+            ]);
+        }
+
+        foreach ($spreadsheet->getAllSheets() as $hoja) {
+            foreach (range('A', $hoja->getHighestColumn()) as $columna) {
+                $hoja->getColumnDimension($columna)->setAutoSize(true);
+            }
+        }
+
+        $temporal = tempnam(sys_get_temp_dir(), 'centro-mando-');
+        (new Xlsx($spreadsheet))->save($temporal);
+        $spreadsheet->disconnectWorksheets();
+
+        return response()->download(
+            $temporal,
+            'centro-mando-'.$datos['periodoSeleccionado'].'.xlsx',
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+        )->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Vista imprimible (Guardar como PDF desde el navegador) con el detalle de predicciones.
+     */
+    public function exportarPdf(Request $request): View
+    {
+        return view('centro-mando.pdf', $this->datosDashboard($request));
+    }
+
+    /**
+     * Reúne todos los datos del Centro de Mando para la vista y las exportaciones.
+     *
+     * @return array<string, mixed>
+     */
+    private function datosDashboard(Request $request): array
     {
         // 1. Obtener periodos disponibles en base de datos
         $mesesNombres = [
@@ -206,7 +327,7 @@ class CentroMandoController extends Controller
 
         $nombreMesActual = $mesesNombres[$mes] ?? "Mes {$mes}";
 
-        return view('centro-mando.index', [
+        return [
             'periodosDisponibles' => $periodosDisponibles,
             'periodoSeleccionado' => $periodoSeleccionado,
             'año' => $año,
@@ -235,6 +356,6 @@ class CentroMandoController extends Controller
                 'estado' => $request->input('estado', 'todos'),
                 'q' => $request->input('q', ''),
             ],
-        ]);
+        ];
     }
 }
