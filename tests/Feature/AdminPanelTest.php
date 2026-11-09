@@ -159,7 +159,7 @@ test('seccion 2: el admin puede crear, actualizar, cambiar estado y eliminar met
     $this->assertDatabaseMissing('indicadores', ['id' => $indicador->id]);
 });
 
-test('seccion 3: el admin puede crear, actualizar, cambiar estado y eliminar mapeos de celdas REM', function () {
+test('seccion 4: el admin puede crear, actualizar, cambiar estado y eliminar mapeos de celdas REM', function () {
     $indicador = Indicador::factory()->create([
         'codigo' => 'MS-02',
         'nombre' => 'Cobertura PAP',
@@ -220,7 +220,39 @@ test('seccion 3: el admin puede crear, actualizar, cambiar estado y eliminar map
     $this->assertDatabaseMissing('rem_mappings', ['id' => $mapping->id]);
 });
 
-test('seccion 4: el admin puede crear, actualizar, cambiar estado y eliminar establecimientos', function () {
+test('la seccion de mapeo REM muestra los mapeos predeterminados aunque no existan overrides', function () {
+    $this->actingAs($this->admin)
+        ->get(route('admin.dashboard', ['tab' => 'rem']))
+        ->assertOk()
+        ->assertSee('MS-01')
+        ->assertSee('Predeterminado')
+        ->assertSee('J26:M26, J28:M28')
+        ->assertSee('IAAPS-03');
+});
+
+test('un mapeo personalizado reemplaza al predeterminado en la seccion REM', function () {
+    $indicador = Indicador::factory()->create([
+        'codigo' => 'MS-01',
+        'nombre' => 'Desarrollo Psicomotor',
+        'tipo' => 'Meta Sanitaria',
+    ]);
+
+    RemMapping::create([
+        'indicadores_id' => $indicador->id,
+        'hoja' => 'A03',
+        'celda_numerador' => 'Z99',
+        'celda_denominador' => null,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.dashboard', ['tab' => 'rem']))
+        ->assertOk()
+        ->assertSee('Personalizado')
+        ->assertSee('Z99');
+});
+
+test('seccion 3: el admin puede crear, actualizar, cambiar estado y eliminar establecimientos', function () {
     // 1. Crear establecimiento
     $response = $this->actingAs($this->admin)
         ->post(route('admin.establecimientos.store'), [
@@ -265,7 +297,7 @@ test('seccion 4: el admin puede crear, actualizar, cambiar estado y eliminar est
     $this->assertDatabaseMissing('establecimientos', ['id' => $est->id]);
 });
 
-test('seccion 4: no se puede eliminar un establecimiento con mediciones registradas', function () {
+test('seccion 3: no se puede eliminar un establecimiento con mediciones registradas', function () {
     $est = Establecimiento::factory()->create(['nombre' => 'CESFAM Con Mediciones']);
     $ind = Indicador::factory()->create();
 
