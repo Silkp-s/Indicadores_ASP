@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\DeisImportacion;
+use App\Services\DeisImportService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -22,12 +23,12 @@ class DeisImportacionFactory extends Factory
 
         return [
             'dataset' => $dataset,
-            'origen' => config("deis.datasets.{$dataset}.url"),
+            'origen' => DeisImportService::origenConfigurado($dataset),
             'estado' => DeisImportacion::ESTADO_COMPLETADO,
             'filas_leidas' => fake()->numberBetween(100000, 9000000),
             'filas_comuna' => fake()->numberBetween(1000, 80000),
             'registros_guardados' => fake()->numberBetween(100, 12000),
-            'mensaje' => 'Importación completada.',
+            'mensaje' => 'Datos de Talcahuano actualizados (año 2024): 1.250 registros del DEIS.',
             'user_id' => null,
             'iniciado_en' => $iniciadoEn,
             'finalizado_en' => $iniciadoEn->copy()->addMinutes(2),
@@ -41,7 +42,7 @@ class DeisImportacionFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'dataset' => $dataset,
-            'origen' => config("deis.datasets.{$dataset}.url"),
+            'origen' => DeisImportService::origenConfigurado($dataset),
         ]);
     }
 
@@ -86,7 +87,7 @@ class DeisImportacionFactory extends Factory
             'filas_leidas' => 0,
             'filas_comuna' => 0,
             'registros_guardados' => 0,
-            'mensaje' => 'La descarga falló (HTTP 404).',
+            'mensaje' => 'No se pudo descargar la información desde el DEIS. Se volverá a intentar en la próxima actualización automática.',
         ]);
     }
 }

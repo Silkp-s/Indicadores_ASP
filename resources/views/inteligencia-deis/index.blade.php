@@ -31,7 +31,7 @@
             <form
                 method="POST"
                 action="{{ route('inteligencia-deis.actualizar') }}"
-                data-confirmar="Se descargarán nuevamente desde el repositorio del MINSAL los datasets de urgencias, defunciones y egresos hospitalarios, y se reemplazarán los datos de los años que incluyan. El proceso corre en segundo plano y puede tardar varios minutos."
+                data-confirmar="Se buscará la información más reciente publicada por el DEIS-MINSAL (atenciones de urgencia, defunciones y egresos hospitalarios) y se reemplazarán los datos de los años que incluya. La actualización se realiza en segundo plano y puede tardar unos minutos. Los datos también se actualizan automáticamente cada semana."
                 class="w-full sm:w-auto"
             >
                 @csrf

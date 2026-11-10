@@ -287,9 +287,11 @@ class DeisIndicadoresService
     }
 
     /**
-     * Fuente de un dataset: su descripción, la última importación completada y el tablero SST relacionado.
+     * Fuente de un dataset: su descripción, los años con datos, la última importación completada y el tablero SST relacionado.
      *
-     * @return array{dataset: string, titulo: string, descripcion: ?string, importacion: ?DeisImportacion, origen: ?array{archivo: string, url: ?string}, tablero: ?array{slug: string, titulo: string, descripcion: string, url: string}}
+     * El origen se muestra siempre como el portal de datos abiertos del DEIS (nunca la ruta o el nombre del archivo).
+     *
+     * @return array{dataset: string, titulo: string, descripcion: ?string, anios: list<int>, importacion: ?DeisImportacion, origen: array{nombre: string, url: ?string}, tablero: ?array{slug: string, titulo: string, descripcion: string, url: string}}
      */
     public function fuente(string $dataset): array
     {
@@ -300,8 +302,12 @@ class DeisIndicadoresService
             'dataset' => $dataset,
             'titulo' => (string) config("deis.datasets.{$dataset}.titulo"),
             'descripcion' => config("deis.datasets.{$dataset}.descripcion"),
+            'anios' => $this->anios(DeisImportService::MODELOS[$dataset]::query()),
             'importacion' => $importacion,
-            'origen' => $importacion === null ? null : $this->origenLegible((string) $importacion->origen),
+            'origen' => [
+                'nombre' => (string) config('deis.portal.nombre', 'Portal de datos abiertos DEIS-MINSAL'),
+                'url' => config('deis.portal.url'),
+            ],
             'tablero' => Arr::first(config('deis.tableros', []), fn (array $tablero) => $tablero['slug'] === $slugTablero),
         ];
     }
@@ -462,22 +468,6 @@ class DeisIndicadoresService
     private function anios(Builder $query): array
     {
         return $query->distinct()->orderByDesc('anio')->pluck('anio')->map(fn ($anio) => (int) $anio)->values()->all();
-    }
-
-    /**
-     * Origen de una importación para mostrar: el nombre del archivo y, si es una URL web, el enlace.
-     *
-     * @return array{archivo: string, url: ?string}
-     */
-    private function origenLegible(string $origen): array
-    {
-        $esUrl = Str::startsWith(Str::lower($origen), ['https://', 'http://']);
-        $ruta = $esUrl ? (string) parse_url($origen, PHP_URL_PATH) : str_replace('\\', '/', $origen);
-
-        return [
-            'archivo' => Str::afterLast($ruta, '/') ?: $origen,
-            'url' => $esUrl ? $origen : null,
-        ];
     }
 
     /**
