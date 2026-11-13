@@ -8,6 +8,7 @@ use App\Http\Controllers\EstablecimientoController;
 use App\Http\Controllers\IaapsMetasController;
 use App\Http\Controllers\ImportacionController;
 use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\ReporteController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -101,6 +102,10 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
 
     // Notificaciones de la campana del top-bar
     Route::post('/notificaciones/leer', [NotificacionController::class, 'leerTodas'])->name('notificaciones.leer');
+
+    // Módulo 6 · Reportes exportables (PDF/Excel)
+    Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+    Route::get('/reportes/exportar', [ReporteController::class, 'exportar'])->name('reportes.exportar');
 
     Route::get('/configuracion', function () {
         return view('en-construccion', ['titulo' => 'Configuración']); // TODO: vista de Configuración
