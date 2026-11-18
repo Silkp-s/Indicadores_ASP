@@ -386,3 +386,27 @@ test('rechaza un estado inexistente', function () {
         ->patch(route('alertas.update', $alerta), ['estado' => 'Archivada'])
         ->assertSessionHasErrors('estado');
 });
+
+test('la paginación muestra la página actual como un campo editable', function () {
+    $est = nuevoCesfam();
+    $regla = AlertaRegla::where('codigo', 'REG-01')->first();
+
+    // 20 alertas para superar las 15 por página y forzar la paginación.
+    foreach (range(1, 20) as $i) {
+        Alerta::create([
+            'alerta_regla_id' => $regla->id,
+            'establecimientos_id' => $est->id,
+            'ano' => 2026,
+            'mes' => 3,
+            'mensaje' => "Alerta {$i}",
+            'estado' => 'Pendiente',
+        ]);
+    }
+
+    $this->actingAs($this->user)
+        ->get(route('alertas.index', ['periodo' => '2026-03']))
+        ->assertOk()
+        ->assertSee('Ir al número de página', false)
+        ->assertSee('name="page"', false)
+        ->assertSee('value="1"', false);
+});

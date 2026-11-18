@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Establecimiento;
 use App\Models\Indicador;
 use App\Models\IndicadorMedida;
+use App\Services\AlertaEngine;
 use App\Services\RemReaderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,8 @@ use Illuminate\View\View;
 class ImportacionController extends Controller
 {
     public function __construct(
-        protected RemReaderService $remReader
+        protected RemReaderService $remReader,
+        protected AlertaEngine $alertaEngine
     ) {}
 
     /**
@@ -419,6 +421,9 @@ class ImportacionController extends Controller
         // Limpiar caché
         Cache::forget("rem_pending_{$tempToken}");
 
+        // El Motor de Alertas se ejecuta automáticamente tras persistir las mediciones.
+        $alertas = $this->evaluarAlertas([[$año, $mes]]);
+
         $totales = [
             'cumpliendo' => collect($savedMedidas)->where('estado', 'Cumpliendo')->count(),
             'en_riesgo' => collect($savedMedidas)->where('estado', 'En Riesgo')->count(),
@@ -451,6 +456,7 @@ class ImportacionController extends Controller
             'totales' => $totales,
             'medidas' => $savedMedidas,
             'chart' => $chartData,
+            'alertas' => $alertas,
         ]);
     }
 
@@ -462,6 +468,7 @@ class ImportacionController extends Controller
         $batch = $request->input('batch', []);
         $results = [];
         $totalMedidasCount = 0;
+        $periodos = [];
 
         foreach ($batch as $item) {
             $tempToken = $item['temp_token'] ?? null;
@@ -497,6 +504,8 @@ class ImportacionController extends Controller
                 Cache::forget("rem_pending_{$tempToken}");
             }
 
+            $periodos["{$año}-{$mes}"] = [$año, $mes];
+
             $totalMedidasCount += count($savedMedidas);
             $results[] = [
                 'establecimiento' => [
@@ -507,13 +516,36 @@ class ImportacionController extends Controller
             ];
         }
 
+        // El Motor de Alertas se ejecuta automáticamente para cada período procesado.
+        $alertas = $this->evaluarAlertas(array_values($periodos));
+
         return response()->json([
             'status' => 'success',
             'message' => "Se procesaron y guardaron {$totalMedidasCount} mediciones para ".count($results).' establecimientos.',
             'total_establecimientos' => count($results),
             'total_medidas' => $totalMedidasCount,
             'detalles' => $results,
+            'alertas' => $alertas,
         ]);
+    }
+
+    /**
+     * Ejecuta el Motor de Alertas para uno o más períodos y devuelve los totales detectados/retirados.
+     *
+     * @param  list<array{0: int, 1: int}>  $periodos
+     * @return array{detectadas: int, retiradas: int}
+     */
+    private function evaluarAlertas(array $periodos): array
+    {
+        $totales = ['detectadas' => 0, 'retiradas' => 0];
+
+        foreach ($periodos as [$ano, $mes]) {
+            $resultado = $this->alertaEngine->evaluar($ano, $mes);
+            $totales['detectadas'] += $resultado['detectadas'];
+            $totales['retiradas'] += $resultado['retiradas'];
+        }
+
+        return $totales;
     }
 
     /**
@@ -605,7 +637,7 @@ class ImportacionController extends Controller
                     break;
 
                     // ==========================================
-                    // B. INDICADORES IAAPS 
+                    // B. INDICADORES IAAPS
                     // ==========================================
                 case 'IAAPS-01':
                     $numerador = (float) ($userInputs['iaaps_01_num'] ?? 1);

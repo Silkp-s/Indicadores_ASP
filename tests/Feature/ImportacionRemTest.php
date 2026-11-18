@@ -1,9 +1,11 @@
 <?php
 
+use App\Models\Alerta;
 use App\Models\Establecimiento;
 use App\Models\Indicador;
 use App\Models\User;
 use App\Services\RemReaderService;
+use Database\Seeders\AlertaReglaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -290,6 +292,38 @@ test('guardar persiste correctamente las mediciones en la base de datos', functi
         'porcentaje_cumplimiento' => 85.00,
         'status' => 'Cumpliendo',
     ]);
+});
+
+test('guardar ejecuta automáticamente el motor de alertas del período', function () {
+    $this->seed(AlertaReglaSeeder::class);
+
+    $tempToken = 'test-token-auto-alertas';
+    Cache::put("rem_pending_{$tempToken}", [
+        'metadata' => ['año' => 2026, 'mes' => 6],
+        'extracted' => [
+            'MS-01' => ['numerador' => 5, 'denominador' => 10, 'fuente' => 'REM-A03'],
+        ],
+    ], now()->addHour());
+
+    $this->actingAs($this->user)
+        ->postJson(route('importacion.guardar'), [
+            'temp_token' => $tempToken,
+            'establecimiento_id' => $this->establecimiento->id,
+            'año' => 2026,
+            'mes' => 6,
+            'inputs' => [
+                'poblacion_fonasa_25_64' => 10000,
+                'numerador_pap_vigente' => 8500,
+                'poblacion_fonasa_0_9' => 4000,
+                'numerador_ms_03' => 3200,
+            ],
+        ])
+        ->assertOk()
+        ->assertJson(['status' => 'success'])
+        ->assertJsonStructure(['alertas' => ['detectadas', 'retiradas']]);
+
+    // MS-01 queda en 50 % (5/10) frente a una meta del 90 % => Crítico => REG-01
+    expect(Alerta::whereHas('regla', fn ($q) => $q->where('codigo', 'REG-01'))->count())->toBeGreaterThan(0);
 });
 
 test('el servicio calcula correctamente cumplimiento para tasas y fórmulas inversas', function () {

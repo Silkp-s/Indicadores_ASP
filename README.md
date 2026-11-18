@@ -1,58 +1,147 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sistema de Control de Gestión e Indicadores APS
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Plataforma web para la **Dirección de Administración de Salud (DAS) de Talcahuano** que consolida, monitorea y proyecta los indicadores de gestión sanitaria de la red de Atención Primaria de Salud (APS): **Metas Sanitarias Ley 19.813** e **IAAPS**, junto con la inteligencia de datos del DEIS-MINSAL y los tableros Power BI del Servicio de Salud Talcahuano.
 
-## About Laravel
+> Proyecto de práctica profesional — Instituto Tecnológico UCSC, Sede Talcahuano (2.º semestre 2026).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Módulos
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Módulo | Ruta | Descripción |
+| :--- | :--- | :--- |
+| Centro de Mando | `/centro-mando` | Dashboard ejecutivo con KPIs, semáforos, gráficos y proyección estadística |
+| IAAPS y Metas | `/iaaps-metas` | Consulta de indicadores y mediciones por período y establecimiento |
+| Establecimientos | `/establecimientos` | Directorio de recintos de la red comunal |
+| Importación REM | `/importacion` | Carga de planillas REM (`.xlsm`/`.xlsx`) y cálculo de indicadores |
+| Inteligencia DEIS | `/inteligencia-deis` | Tableros Power BI del SST y datasets abiertos DEIS-MINSAL |
+| Alertas | `/alertas` | Bandeja de alertas generadas por el motor de reglas |
+| Reportes | `/reportes` | Reportes mensuales, trimestrales y de alertas exportables (Excel/PDF) |
+| Panel de Administración | `/admin` | Usuarios, indicadores, mapeo de celdas REM y establecimientos |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Stack tecnológico
 
-## Learning Laravel
+- **Backend:** PHP 8.4 · Laravel 13 · MySQL/MariaDB
+- **Frontend:** Blade · Tailwind CSS 4 · Vite (sin framework JS)
+- **Visualización:** ApexCharts · SweetAlert2 (CDN)
+- **Permisos:** spatie/laravel-permission
+- **Planillas y exportación:** PhpSpreadsheet · Dompdf
+- **Pruebas:** Pest
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Requisitos
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- PHP 8.4 con las extensiones de Laravel (pdo, mysql, mbstring, etc.)
+- Composer 2
+- Node.js 20+ y npm
+- MySQL 8 / MariaDB
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Instalación
 
 ```bash
-composer require laravel/boost --dev
+# 1. Clonar el repositorio
+git clone https://github.com/Silkp-s/Indicadores_ASP.git
+cd Indicadores_ASP
 
-php artisan boost:install
+# 2. Instalar dependencias, migrar y compilar assets
+composer run setup
+
+# 3. Configurar el entorno (crea .env y genera APP_KEY)
+copy .env.example .env   # en Linux/macOS: cp .env.example .env
+php artisan key:generate
+
+# 4. Configurar la base de datos en .env (MySQL)
+#    DB_CONNECTION=mysql · DB_DATABASE=laravel · DB_USERNAME · DB_PASSWORD
+
+# 5. Ejecutar migraciones y datos base
+php artisan migrate --seed
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+El comando `composer run setup` equivale a `composer install`, `php artisan key:generate`, `php artisan migrate --force`, `npm install` y `npm run build`.
 
-## Contributing
+## Ejecutar en desarrollo
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+composer run dev
+```
 
-## Code of Conduct
+Levanta el servidor HTTP (`:8000`), el listener de colas y Vite en un solo comando.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+# Alternativa: servidor, colas y Vite por separado
+php artisan serve
+php artisan queue:work
+npm run dev
+```
 
-## Security Vulnerabilities
+## Cuentas de demostración
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+`php artisan db:seed` crea los roles, el catálogo de indicadores, los establecimientos, las reglas de alertas y las cuentas:
 
-## License
+| Rol | Email | Contraseña |
+| :--- | :--- | :--- |
+| Admin | `admin@das.cl` | `password` |
+| Usuario | `usuario@das.cl` | `password` |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Datos de prueba
+
+Para poblar la aplicación con datos de ejemplo (mediciones históricas, alertas, datasets DEIS y notificaciones) y evaluar todos los módulos:
+
+```bash
+php artisan db:seed --class=DatosPruebaSeeder
+```
+
+Otros seeders opcionales:
+
+```bash
+php artisan db:seed --class=RemMappingSeeder   # mapeos de celdas REM predeterminados
+php artisan db:seed --class=IndicadorSeeder    # catálogo de Metas Sanitarias e IAAPS
+```
+
+## Comandos útiles
+
+| Comando | Descripción |
+| :--- | :--- |
+| `composer run dev` | Servidor + colas + Vite |
+| `npm run build` / `npm run dev` | Compilar assets |
+| `php artisan test` | Ejecutar la suite (Pest) |
+| `vendor/bin/pint --dirty` | Formatear PHP |
+| `php artisan route:list` | Listar rutas |
+| `php artisan alertas:evaluar` | Ejecutar el motor de alertas (programado a diario) |
+| `php artisan deis:importar` | Importar datasets DEIS-MINSAL |
+
+## Estructura del proyecto
+
+```
+app/
+  Console/Commands/     # Comandos: alertas:evaluar, deis:importar
+  Http/Controllers/     # Un controlador por módulo
+  Http/Middleware/      # Roles (admin_only) y notificaciones
+  Http/Requests/        # Form Requests de validación
+  Jobs/                 # Colas (importación DEIS)
+  Models/               # Modelos Eloquent
+  Services/             # Lógica de negocio: RemReaderService, ProyeccionEstadisticaService,
+                        #   AlertaEngine, DeisImportService, DeisIndicadoresService, ReporteExportService
+database/
+  migrations/           # Esquema de base de datos
+  seeders/              # Roles, indicadores, establecimientos, alertas, datos de prueba
+  factories/            # Factories para pruebas
+resources/views/        # Vistas Blade (un directorio por módulo)
+routes/web.php          # Rutas de la aplicación
+config/deis.php         # Configuración de datasets DEIS y tableros Power BI
+tests/                  # Pruebas Pest (Feature / Unit)
+```
+
+## Documentación
+
+- [Manual de Usuario](docs/manual-de-usuario.md)
+- [Documento de Diseño del Sistema (SDD)](docs/sdd.md)
+
+## Equipo
+
+| Rol | Estudiante |
+| :--- | :--- |
+| Tech Lead | Vincent Arias |
+| Alertas / Integraciones | Ignacio Gutiérrez |
+| Integraciones DEIS | Matías Jerez |
+
+- **Organización:** Dirección de Administración de Salud (DAS) Talcahuano
+- **Supervisor de la organización:** Emmanuel Cáceres
+- **Profesor evaluador:** Nicolás Pérez Garay

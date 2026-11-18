@@ -162,7 +162,7 @@
                             <td colspan="7" class="px-6 py-14 text-center">
                                 <p class="text-base font-semibold text-brand-950">No hay alertas para los filtros seleccionados</p>
                                 <p class="mt-1 text-sm text-[#64748B]">
-                                    Pulse «Evaluar {{ $periodoLabel }}» para ejecutar las reglas sobre las mediciones del período.
+                                    El motor se ejecuta automáticamente tras cada importación REM. Puede forzar la evaluación con el botón «Evaluar {{ $periodoLabel }}».
                                 </p>
                             </td>
                         </tr>
@@ -172,7 +172,7 @@
         </div>
 
         @if ($alertas->hasPages())
-            <div class="border-t border-[#E2E8F0] bg-[#F8FAFC] px-5 py-3">
+            <div class="flex justify-end border-t border-[#E2E8F0] bg-[#F8FAFC] px-5 py-3">
                 {{ $alertas->links() }}
             </div>
         @endif
