@@ -1,8 +1,5 @@
 <?php
 
-$anioUrgencias = (int) env('DEIS_ANIO_URGENCIAS', 2025);
-$anioEgresos = (int) env('DEIS_ANIO_EGRESOS', 2024);
-
 return [
 
     /*
@@ -25,9 +22,22 @@ return [
     | Datasets DEIS
     |--------------------------------------------------------------------------
     |
-    | Archivos ZIP publicados en repositoriodeis.minsal.cl. El nombre del
-    | archivo de defunciones cambia cada semana (fecha al final), por lo que
-    | cada URL se puede reemplazar desde el archivo .env.
+    | Archivos ZIP publicados en repositoriodeis.minsal.cl. El año de los datos
+    | no se configura: se deriva siempre de los registros importados.
+    |
+    | Sin "url", cada importación busca la publicación vigente con el patrón de
+    | "busqueda" (consultando solo la cabecera de cada archivo candidato):
+    |
+    | - Urgencias y egresos se publican un archivo por año ({anio}). Se prueba
+    |   desde el año actual hacia atrás, "anios" años en total, y se importa
+    |   solo el más reciente disponible; los años importados antes se conservan.
+    | - Defunciones se publica con la fecha en el nombre (ddmmaaaa) y el DEIS lo
+    |   reemplaza cada semana, borrando el anterior. Se prueban las fechas de
+    |   los últimos "dias" días ({fecha}) con el año actual o el anterior como
+    |   último año del rango ({hasta}, {desde} = {hasta} - 2).
+    |
+    | DEIS_URL_URGENCIAS, DEIS_URL_DEFUNCIONES y DEIS_URL_EGRESOS fijan una URL
+    | exacta en el archivo .env y desactivan la búsqueda de ese dataset.
     |
     */
 
@@ -35,23 +45,46 @@ return [
         'urgencias' => [
             'titulo' => 'Atenciones de urgencia',
             'descripcion' => 'Atenciones de urgencia por establecimiento, causa y semana estadística.',
-            'anio' => $anioUrgencias,
-            'url' => env('DEIS_URL_URGENCIAS', "https://repositoriodeis.minsal.cl/SistemaAtencionesUrgencia/AtencionesUrgencia{$anioUrgencias}.zip"),
+            'url' => env('DEIS_URL_URGENCIAS'),
+            'busqueda' => [
+                'patron' => 'https://repositoriodeis.minsal.cl/SistemaAtencionesUrgencia/AtencionesUrgencia{anio}.zip',
+                'anios' => 3,
+            ],
         ],
 
         'defunciones' => [
             'titulo' => 'Defunciones',
             'descripcion' => 'Defunciones por mes, sexo, grupo de edad y capítulo CIE-10 de la causa básica (cifras preliminares).',
-            'anio' => null,
-            'url' => env('DEIS_URL_DEFUNCIONES', 'https://repositoriodeis.minsal.cl/DatosAbiertos/VITALES/DEFUNCIONES_FUENTE_DEIS_2024_2026_27102026.zip'),
+            'url' => env('DEIS_URL_DEFUNCIONES'),
+            'busqueda' => [
+                'patron' => 'https://repositoriodeis.minsal.cl/DatosAbiertos/VITALES/DEFUNCIONES_FUENTE_DEIS_{desde}_{hasta}_{fecha}.zip',
+                'dias' => 21,
+            ],
         ],
 
         'egresos' => [
             'titulo' => 'Egresos hospitalarios',
             'descripcion' => 'Egresos hospitalarios de residentes de la comuna por sector, sexo, grupo de edad, capítulo CIE-10 y condición de egreso.',
-            'anio' => $anioEgresos,
-            'url' => env('DEIS_URL_EGRESOS', "https://repositoriodeis.minsal.cl/DatosAbiertos/EGRESOS/EGRESOS_{$anioEgresos}.zip"),
+            'url' => env('DEIS_URL_EGRESOS'),
+            'busqueda' => [
+                'patron' => 'https://repositoriodeis.minsal.cl/DatosAbiertos/EGRESOS/EGRESOS_{anio}.zip',
+                'anios' => 3,
+            ],
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Portal de datos abiertos
+    |--------------------------------------------------------------------------
+    |
+    | Página pública del DEIS-MINSAL que se enlaza como origen de los datos.
+    |
+    */
+
+    'portal' => [
+        'nombre' => 'Portal de datos abiertos DEIS-MINSAL',
+        'url' => 'https://deis.minsal.cl/#datosabiertos',
     ],
 
     /*
@@ -159,6 +192,20 @@ return [
     'descargas' => [
         'directorio' => storage_path('app/private/deis'),
         'timeout' => (int) env('DEIS_DESCARGA_TIMEOUT', 600),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Actualización
+    |--------------------------------------------------------------------------
+    |
+    | Segundos que el botón de actualización espera a que termine otra
+    | solicitud simultánea antes de avisar que los datos ya se actualizan.
+    |
+    */
+
+    'actualizacion' => [
+        'espera_candado' => 5,
     ],
 
 ];

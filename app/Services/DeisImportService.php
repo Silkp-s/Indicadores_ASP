@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\DeisImportacionException;
 use App\Models\DeisAtencionUrgencia;
 use App\Models\DeisDefuncion;
 use App\Models\DeisEgreso;
@@ -10,13 +11,14 @@ use Generator;
 use HashContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-use RuntimeException;
 use Throwable;
 use ZipArchive;
 
@@ -38,6 +40,9 @@ class DeisImportService
 
     /** Segundos que dura el candado de importación de un dataset (igual al tiempo límite del job). */
     private const DURACION_CANDADO = 1800;
+
+    /** Zona horaria con la que se calculan las fechas de publicación del DEIS. */
+    private const ZONA_HORARIA = 'America/Santiago';
 
     /** Valor usado cuando un campo categórico viene vacío o no es reconocible. */
     public const SIN_INFORMACION = 'Sin información';
@@ -101,21 +106,26 @@ class DeisImportService
         'egresos' => 'COMUNA_RESIDENCIA',
     ];
 
-    /** @var array<string, class-string<Model>> */
-    private const MODELOS = [
+    /**
+     * Modelo donde se guarda cada dataset.
+     *
+     * @var array<string, class-string<Model>>
+     */
+    public const MODELOS = [
         'urgencias' => DeisAtencionUrgencia::class,
         'defunciones' => DeisDefuncion::class,
         'egresos' => DeisEgreso::class,
     ];
 
     /**
-     * Importa un dataset desde un archivo local (ZIP o CSV) o lo descarga desde la URL indicada o configurada.
+     * Importa un dataset desde un archivo local (ZIP o CSV) o lo descarga desde la URL indicada, la fijada en
+     * `deis.datasets.*.url` o, si no hay ninguna, la publicación vigente que encuentra `resolverUrl()`.
      *
      * Reemplaza los registros de los años presentes en el archivo y deja la bitácora en
      * `completado` o, si algo falla, en `fallido` antes de relanzar la excepción.
      *
      * @throws InvalidArgumentException si el dataset no existe.
-     * @throws Throwable si la descarga, la lectura o el guardado fallan.
+     * @throws Throwable si la búsqueda, la descarga, la lectura o el guardado fallan.
      */
     public function importar(string $dataset, ?string $archivo = null, ?string $url = null, ?DeisImportacion $importacion = null): DeisImportacion
     {
@@ -124,7 +134,7 @@ class DeisImportService
         }
 
         $url = filled($url) ? $url : config("deis.datasets.{$dataset}.url");
-        $origen = $archivo ?? (string) $url;
+        $origen = $archivo ?? (filled($url) ? (string) $url : self::origenConfigurado($dataset));
 
         $importacion ??= new DeisImportacion;
         $importacion->fill([
@@ -143,11 +153,12 @@ class DeisImportService
 
         try {
             if (! $candado->get()) {
-                throw new RuntimeException("Ya hay otra importación del dataset «{$dataset}» en curso; espere a que termine.");
+                throw DeisImportacionException::enCurso("Ya hay otra importación del dataset «{$dataset}» en curso; espere a que termine.");
             }
 
             if ($archivo === null && blank($url)) {
-                throw new RuntimeException("No hay una URL configurada para el dataset «{$dataset}».");
+                $url = $this->resolverUrl($dataset);
+                $importacion->update(['origen' => Str::limit($url, 500, '')]);
             }
 
             $ruta = $archivo ?? $this->descargar($dataset, $url);
@@ -160,9 +171,16 @@ class DeisImportService
 
             $this->reemplazarRegistros(self::MODELOS[$dataset], $resultado['registros'], $resultado['anios']);
         } catch (Throwable $exception) {
+            // El detalle técnico queda en el log; la bitácora (visible en el panel) guarda un texto simple.
+            Log::error("Falló la importación DEIS de «{$dataset}»: {$exception->getMessage()}", [
+                'importacion_id' => $importacion->id,
+                'origen' => $importacion->origen,
+                'excepcion' => $exception::class,
+            ]);
+
             $importacion->update([
                 'estado' => DeisImportacion::ESTADO_FALLIDO,
-                'mensaje' => Str::limit($exception->getMessage(), self::LARGO_MENSAJE),
+                'mensaje' => Str::limit(DeisImportacionException::mensajeParaUsuario($exception), self::LARGO_MENSAJE),
                 'finalizado_en' => now(),
             ]);
 
@@ -252,7 +270,7 @@ class DeisImportService
         } catch (ConnectionException $exception) {
             File::delete($temporal);
 
-            throw new RuntimeException("No se pudo conectar con {$url}: {$exception->getMessage()}", previous: $exception);
+            throw DeisImportacionException::descarga("No se pudo conectar con {$url}: {$exception->getMessage()}", $exception);
         }
 
         $respuesta->close();
@@ -260,18 +278,118 @@ class DeisImportService
         if ($respuesta->failed()) {
             File::delete($temporal);
 
-            throw new RuntimeException("La descarga desde {$url} falló (HTTP {$respuesta->status()}).");
+            throw DeisImportacionException::descarga("La descarga desde {$url} falló (HTTP {$respuesta->status()}).");
         }
 
         if (! $this->esZip($temporal)) {
             File::delete($temporal);
 
-            throw new RuntimeException("El archivo descargado desde {$url} no es un ZIP válido.");
+            throw DeisImportacionException::descarga("El archivo descargado desde {$url} no es un ZIP válido.");
         }
 
         File::move($temporal, $destino);
 
         return $destino;
+    }
+
+    /**
+     * Origen que se registra antes de conocer la URL definitiva: la fijada en la configuración o, si no hay,
+     * el patrón de búsqueda (se reemplaza por la URL encontrada al importar).
+     */
+    public static function origenConfigurado(string $dataset): string
+    {
+        $url = config("deis.datasets.{$dataset}.url");
+
+        return Str::limit((string) (filled($url) ? $url : config("deis.datasets.{$dataset}.busqueda.patron")), 500, '');
+    }
+
+    /**
+     * Publicación vigente del dataset según su patrón de búsqueda, consultando solo la cabecera de cada candidata.
+     *
+     * - Patrón con `{anio}` (urgencias y egresos, un archivo por año): desde el año actual hacia atrás, `anios` años
+     *   en total; se usa el más reciente publicado.
+     * - Patrón con `{fecha}` (defunciones, que el DEIS reemplaza cada semana con la fecha en el nombre): las fechas
+     *   de los últimos `dias` días, con el año actual o el anterior como último año del rango.
+     *
+     * @throws DeisImportacionException si no hay patrón, si no hay conexión o si ninguna candidata está publicada.
+     */
+    public function resolverUrl(string $dataset): string
+    {
+        $patron = (string) config("deis.datasets.{$dataset}.busqueda.patron");
+
+        if (blank($patron)) {
+            throw DeisImportacionException::descarga("No hay una URL ni un patrón de búsqueda configurado para el dataset «{$dataset}».");
+        }
+
+        $candidatas = str_contains($patron, '{fecha}')
+            ? $this->candidatasPorFecha($dataset, $patron)
+            : $this->candidatasPorAnio($dataset, $patron);
+
+        foreach ($candidatas as $candidata) {
+            try {
+                $respuesta = Http::connectTimeout(15)->timeout(30)->head($candidata);
+            } catch (ConnectionException $exception) {
+                throw DeisImportacionException::descarga("No se pudo conectar con {$candidata} al buscar la publicación vigente del dataset «{$dataset}»: {$exception->getMessage()}", $exception);
+            }
+
+            if ($respuesta->successful()) {
+                Log::info("Publicación vigente del dataset DEIS «{$dataset}»: {$candidata}.");
+
+                return $candidata;
+            }
+
+            // Solo un archivo inexistente pasa a la siguiente candidata; otro error (500, 503, 403…) no debe
+            // terminar importando una publicación más antigua como si fuera la vigente.
+            if (! in_array($respuesta->status(), [404, 410], true)) {
+                throw DeisImportacionException::descarga("El DEIS respondió HTTP {$respuesta->status()} al buscar {$candidata} para el dataset «{$dataset}».");
+            }
+        }
+
+        throw DeisImportacionException::descarga(sprintf(
+            'No se encontró una publicación vigente del dataset «%s»: ninguna de las %d URL probadas respondió (desde %s hasta %s).',
+            $dataset,
+            count($candidatas),
+            $candidatas[0] ?? $patron,
+            Arr::last($candidatas) ?? $patron,
+        ));
+    }
+
+    /**
+     * URLs de un patrón con `{anio}`, desde el año actual hacia atrás.
+     *
+     * @return list<string>
+     */
+    private function candidatasPorAnio(string $dataset, string $patron): array
+    {
+        $anioActual = now(self::ZONA_HORARIA)->year;
+        $anios = max(1, (int) config("deis.datasets.{$dataset}.busqueda.anios", 3));
+
+        return array_map(
+            fn (int $atras): string => strtr($patron, ['{anio}' => $anioActual - $atras]),
+            range(0, $anios - 1),
+        );
+    }
+
+    /**
+     * URLs de un patrón con `{fecha}` (ddmmaaaa), `{desde}` y `{hasta}`, desde hoy hacia atrás.
+     *
+     * @return list<string>
+     */
+    private function candidatasPorFecha(string $dataset, string $patron): array
+    {
+        $hoy = now(self::ZONA_HORARIA)->startOfDay();
+        $dias = max(0, (int) config("deis.datasets.{$dataset}.busqueda.dias", 21));
+        $candidatas = [];
+
+        for ($dia = 0; $dia <= $dias; $dia++) {
+            $fecha = $hoy->copy()->subDays($dia)->format('dmY');
+
+            foreach ([$hoy->year, $hoy->year - 1] as $hasta) {
+                $candidatas[] = strtr($patron, ['{desde}' => $hasta - 2, '{hasta}' => $hasta, '{fecha}' => $fecha]);
+            }
+        }
+
+        return array_values(array_unique($candidatas));
     }
 
     /**
@@ -453,7 +571,7 @@ class DeisImportService
                         $linea .= $continuacion;
 
                         if (strlen($linea) > self::LARGO_MAXIMO_FILA) {
-                            throw new RuntimeException('El CSV tiene una fila anormalmente larga (comillas sin cerrar): el archivo está dañado.');
+                            throw DeisImportacionException::archivo('El CSV tiene una fila anormalmente larga (comillas sin cerrar): el archivo está dañado.');
                         }
                     }
                 }
@@ -485,11 +603,11 @@ class DeisImportService
             }
 
             if ($tamano !== null && ftell($stream) !== $tamano) {
-                throw new RuntimeException('El CSV dentro del ZIP está incompleto o dañado: se leyeron '.number_format((int) ftell($stream), 0, ',', '.').' de '.number_format($tamano, 0, ',', '.').' bytes.');
+                throw DeisImportacionException::archivo('El CSV dentro del ZIP está incompleto o dañado: se leyeron '.number_format((int) ftell($stream), 0, ',', '.').' de '.number_format($tamano, 0, ',', '.').' bytes.');
             }
 
             if ($crc !== null && hash_final($crc) !== $crcEsperado) {
-                throw new RuntimeException('El CSV dentro del ZIP está dañado: su CRC no coincide con el declarado en el ZIP.');
+                throw DeisImportacionException::archivo('El CSV dentro del ZIP está dañado: su CRC no coincide con el declarado en el ZIP.');
             }
         } finally {
             fclose($stream);
@@ -517,7 +635,7 @@ class DeisImportService
         }
 
         if (strlen($linea) === self::LARGO_MAXIMO_FILA && ! str_ends_with($linea, "\n") && ! feof($stream)) {
-            throw new RuntimeException('El CSV tiene una fila de más de '.number_format(self::LARGO_MAXIMO_FILA, 0, ',', '.').' bytes: el archivo está dañado.');
+            throw DeisImportacionException::archivo('El CSV tiene una fila de más de '.number_format(self::LARGO_MAXIMO_FILA, 0, ',', '.').' bytes: el archivo está dañado.');
         }
 
         return $linea;
@@ -531,14 +649,14 @@ class DeisImportService
     private function abrirCsv(string $ruta): array
     {
         if (! is_file($ruta)) {
-            throw new RuntimeException("No se encontró el archivo {$ruta}.");
+            throw DeisImportacionException::archivo("No se encontró el archivo {$ruta}.");
         }
 
         if (strtolower(pathinfo($ruta, PATHINFO_EXTENSION)) === 'csv') {
             $stream = fopen($ruta, 'rb');
 
             if ($stream === false) {
-                throw new RuntimeException("No se pudo abrir el archivo {$ruta}.");
+                throw DeisImportacionException::archivo("No se pudo abrir el archivo {$ruta}.");
             }
 
             return ['stream' => $stream, 'zip' => null, 'tamano' => null, 'crc' => null];
@@ -547,7 +665,7 @@ class DeisImportService
         $zip = new ZipArchive;
 
         if (! $this->esZip($ruta) || $zip->open($ruta, ZipArchive::RDONLY) !== true) {
-            throw new RuntimeException("El archivo {$ruta} no es un ZIP válido ni un CSV.");
+            throw DeisImportacionException::archivo("El archivo {$ruta} no es un ZIP válido ni un CSV.");
         }
 
         $entrada = null;
@@ -567,7 +685,7 @@ class DeisImportService
         if ($stream === false) {
             $zip->close();
 
-            throw new RuntimeException('El ZIP no contiene ningún archivo CSV.');
+            throw DeisImportacionException::archivo('El ZIP no contiene ningún archivo CSV.');
         }
 
         $estadistica = $zip->statName($entrada);
@@ -583,7 +701,7 @@ class DeisImportService
     private function indicesDeColumnas(string|false $cabecera, string $dataset): array
     {
         if ($cabecera === false || trim($cabecera) === '') {
-            throw new RuntimeException('El archivo CSV está vacío.');
+            throw DeisImportacionException::archivo('El archivo CSV está vacío.');
         }
 
         if (str_starts_with($cabecera, "\xEF\xBB\xBF")) {
@@ -609,7 +727,7 @@ class DeisImportService
         }
 
         if ($faltantes !== []) {
-            throw new RuntimeException("El archivo no tiene las columnas esperadas para el dataset «{$dataset}». Faltan: ".implode(', ', $faltantes).'.');
+            throw DeisImportacionException::archivo("El archivo no tiene las columnas esperadas para el dataset «{$dataset}». Faltan: ".implode(', ', $faltantes).'.');
         }
 
         return $indices;
@@ -661,25 +779,27 @@ class DeisImportService
     }
 
     /**
+     * Resumen en lenguaje simple de una importación completada, para la bitácora que se muestra en el panel.
+     *
      * @param  array{registros: list<array<string, mixed>>, anios: list<int>, filas_comuna: int, omitidas: int}  $resultado
      */
     private function mensajeCompletado(array $resultado): string
     {
+        $comuna = config('deis.comuna.nombre');
+
+        if ($resultado['anios'] === []) {
+            return "Datos actualizados: la publicación del DEIS no trae información de {$comuna}.";
+        }
+
         $mensaje = sprintf(
-            'Se guardaron %s registros agregados a partir de %s filas de %s',
-            number_format(count($resultado['registros']), 0, ',', '.'),
+            'Datos de %s actualizados (%s): %s registros del DEIS.',
+            $comuna,
+            count($resultado['anios']) === 1 ? "año {$resultado['anios'][0]}" : 'años '.implode(', ', $resultado['anios']),
             number_format($resultado['filas_comuna'], 0, ',', '.'),
-            config('deis.comuna.nombre'),
         );
 
-        $mensaje .= match (count($resultado['anios'])) {
-            0 => '.',
-            1 => " (año {$resultado['anios'][0]}).",
-            default => ' (años '.implode(', ', $resultado['anios']).').',
-        };
-
         if ($resultado['omitidas'] > 0) {
-            $mensaje .= ' Se omitieron '.number_format($resultado['omitidas'], 0, ',', '.').' filas con fecha, año o códigos inválidos.';
+            $mensaje .= ' Se descartaron '.number_format($resultado['omitidas'], 0, ',', '.').' registros con fecha o códigos no válidos.';
         }
 
         return $mensaje;

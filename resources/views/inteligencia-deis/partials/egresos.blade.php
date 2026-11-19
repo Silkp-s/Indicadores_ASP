@@ -99,7 +99,7 @@
 
     @include('inteligencia-deis.partials.tabla-capitulos', [
         'titulo' => 'Detalle de los principales diagnósticos',
-        'descripcion' => 'Capítulo CIE-10 derivado del diagnóstico principal (DIAG1) de cada egreso.',
+        'descripcion' => 'Capítulo CIE-10 del diagnóstico principal de cada egreso.',
         'etiquetaCasos' => 'Egresos',
         'conEstada' => true,
     ])

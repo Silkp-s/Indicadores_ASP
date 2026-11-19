@@ -11,9 +11,11 @@ use Illuminate\Console\Command;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
@@ -324,7 +326,7 @@ it('registra en la bitácora la importación completada con sus conteos desde un
         ->filas_leidas->toBe(5)
         ->filas_comuna->toBe(3)
         ->registros_guardados->toBe(2)
-        ->mensaje->toBe('Se guardaron 2 registros agregados a partir de 3 filas de Talcahuano (año 2024).')
+        ->mensaje->toBe('Datos de Talcahuano actualizados (año 2024): 3 registros del DEIS.')
         ->iniciado_en->toEqual(now())
         ->finalizado_en->toEqual(now());
 });
@@ -358,6 +360,7 @@ it('reemplaza solo los registros de los años presentes en el archivo', function
 });
 
 it('marca la importación como fallida y conserva los datos previos si faltan columnas', function () {
+    Log::spy();
     $existentes = DeisAtencionUrgencia::factory()->count(2)->create();
     $csv = $this->directorio.DIRECTORY_SEPARATOR.'urgencias.csv';
     File::put($csv, deisCsv([Arr::except(deisFilaUrgencia(), ['Total', 'semana'])]));
@@ -367,9 +370,10 @@ it('marca la importación como fallida y conserva los datos previos si faltan co
 
     expect(DeisImportacion::sole())
         ->estado->toBe(DeisImportacion::ESTADO_FALLIDO)
-        ->mensaje->toBe('El archivo no tiene las columnas esperadas para el dataset «urgencias». Faltan: TOTAL, SEMANA.')
+        ->mensaje->toBe('La información publicada por el DEIS no tiene el formato esperado o llegó incompleta. Se volverá a intentar en la próxima actualización automática.')
         ->finalizado_en->not->toBeNull();
     $existentes->each(fn (DeisAtencionUrgencia $atencion) => $this->assertModelExists($atencion));
+    Log::shouldHaveReceived('error')->once()->withArgs(fn (string $mensaje) => str_contains($mensaje, 'Faltan: TOTAL, SEMANA.'));
 });
 
 it('marca la importación como fallida si el CSV dentro del ZIP está incompleto', function () {
@@ -466,16 +470,16 @@ it('descarga el ZIP desde la URL configurada cuando no se indica un archivo', fu
 
 it('marca como fallida una descarga que no entrega un ZIP válido', function (int $estado, string $cuerpo, string $mensaje) {
     Http::preventStrayRequests();
-    $url = 'https://repositoriodeis.minsal.cl/DatosAbiertos/VITALES/DEFUNCIONES_FUENTE_DEIS_2024_2026_27102026.zip';
-    config(['deis.datasets.defunciones.url' => $url]);
+    $url = 'https://repositoriodeis.minsal.cl/DatosAbiertos/EGRESOS/EGRESOS_2024.zip';
+    config(['deis.datasets.egresos.url' => $url]);
     Http::fake([$url => Http::response($cuerpo, $estado)]);
 
-    expect(fn () => app(DeisImportService::class)->importar('defunciones'))
+    expect(fn () => app(DeisImportService::class)->importar('egresos'))
         ->toThrow(RuntimeException::class, $mensaje);
 
     expect(DeisImportacion::sole())
         ->estado->toBe(DeisImportacion::ESTADO_FALLIDO)
-        ->mensaje->toContain($mensaje);
+        ->mensaje->toBe('No se pudo descargar la información desde el DEIS. Se volverá a intentar en la próxima actualización automática.');
     expect(File::files(config('deis.descargas.directorio')))->toBeEmpty();
 })->with([
     'respuesta 404' => [404, 'Not Found', 'falló (HTTP 404)'],
@@ -538,6 +542,260 @@ it('marca como fallida la importación en curso cuando el job falla', function (
 
     expect($importacion->fresh())
         ->estado->toBe(DeisImportacion::ESTADO_FALLIDO)
-        ->mensaje->toBe('Se agotó el tiempo de ejecución.')
+        ->mensaje->toBe('La actualización no alcanzó a terminar. Se volverá a intentar en la próxima actualización automática.')
         ->finalizado_en->not->toBeNull();
 });
+
+/**
+ * URL de defunciones del DEIS para el rango de años y la fecha de publicación (ddmmaaaa) indicados.
+ */
+function deisUrlDefunciones(string $rango, string $fecha): string
+{
+    return "https://repositoriodeis.minsal.cl/DatosAbiertos/VITALES/DEFUNCIONES_FUENTE_DEIS_{$rango}_{$fecha}.zip";
+}
+
+/**
+ * URL anual de urgencias o egresos del DEIS.
+ */
+function deisUrlAnual(string $dataset, int $anio): string
+{
+    return match ($dataset) {
+        'urgencias' => "https://repositoriodeis.minsal.cl/SistemaAtencionesUrgencia/AtencionesUrgencia{$anio}.zip",
+        'egresos' => "https://repositoriodeis.minsal.cl/DatosAbiertos/EGRESOS/EGRESOS_{$anio}.zip",
+    };
+}
+
+/**
+ * Crea una importación del dataset en el estado indicado.
+ */
+function deisImportacionEnEstado(string $dataset, string $estado, array $atributos = []): DeisImportacion
+{
+    $fabrica = DeisImportacion::factory()->delDataset($dataset);
+
+    return ($estado === DeisImportacion::ESTADO_COMPLETADO ? $fabrica : $fabrica->{$estado}())->create($atributos);
+}
+
+const DEIS_MENSAJE_DESCARGA = 'No se pudo descargar la información desde el DEIS. Se volverá a intentar en la próxima actualización automática.';
+
+it('sin una URL fijada en el .env la configuración no apunta a un archivo fijo y usa la búsqueda', function (string $dataset) {
+    expect(config("deis.datasets.{$dataset}.url"))->toBeNull()
+        ->and(config("deis.datasets.{$dataset}.busqueda.patron"))->toStartWith('https://repositoriodeis.minsal.cl/');
+})->with(DeisImportacion::DATASETS);
+
+it('importa el archivo del año actual de urgencias cuando ya está publicado', function () {
+    Http::preventStrayRequests();
+    $this->travelTo('2026-11-02 12:00:00');
+    $vigente = deisUrlAnual('urgencias', 2026);
+    $zip = File::get(deisZip($this->directorio, 'AtencionesUrgencia2026.csv', deisCsv([deisFilaUrgencia()])));
+    Http::fake([$vigente => Http::response($zip), '*' => Http::response('Not Found', 404)]);
+
+    $importacion = app(DeisImportService::class)->importar('urgencias');
+
+    expect($importacion->fresh())
+        ->estado->toBe(DeisImportacion::ESTADO_COMPLETADO)
+        ->origen->toBe($vigente)
+        ->registros_guardados->toBe(1);
+    Http::assertSentCount(2);
+    Http::assertSent(fn (Request $request) => $request->method() === 'HEAD' && $request->url() === $vigente);
+    Http::assertSent(fn (Request $request) => $request->method() === 'GET' && $request->url() === $vigente);
+});
+
+it('usa el año anterior de egresos si el del año actual aún no está publicado y conserva los años ya importados', function () {
+    Http::preventStrayRequests();
+    $this->travelTo('2026-11-02 12:00:00');
+    app(DeisImportService::class)->importar('egresos', deisZip($this->directorio, 'EGR_2023.csv', deisCsv([deisFilaEgreso(['ANO_EGRESO' => 2023])])));
+    $vigente = deisUrlAnual('egresos', 2025);
+    $zip = File::get(deisZip($this->directorio, 'EGR_DATOS_ABIERTO_2025.csv', deisCsv([deisFilaEgreso(['ANO_EGRESO' => 2025])])));
+    Http::fake([$vigente => Http::response($zip), '*' => Http::response('Not Found', 404)]);
+
+    $importacion = app(DeisImportService::class)->importar('egresos');
+
+    expect($importacion->fresh())
+        ->estado->toBe(DeisImportacion::ESTADO_COMPLETADO)
+        ->origen->toBe($vigente);
+    Http::assertSent(fn (Request $request) => $request->method() === 'HEAD' && $request->url() === deisUrlAnual('egresos', 2026));
+    Http::assertNotSent(fn (Request $request) => $request->url() === deisUrlAnual('egresos', 2024));
+    expect(DeisEgreso::query()->orderBy('anio')->pluck('anio')->unique()->values()->all())->toBe([2023, 2025]);
+});
+
+it('no importa el año anterior cuando el archivo del año actual responde con un error del servidor', function (int $estado) {
+    $this->travelTo('2026-11-02 12:00:00');
+    Http::fake([
+        deisUrlAnual('urgencias', 2026) => Http::response('', $estado),
+        '*' => Http::response('', 200),
+    ]);
+
+    expect(fn () => app(DeisImportService::class)->importar('urgencias'))
+        ->toThrow(RuntimeException::class, "El DEIS respondió HTTP {$estado}");
+
+    Http::assertSentCount(1);
+    Http::assertNotSent(fn (Request $request) => $request->url() === deisUrlAnual('urgencias', 2025));
+    expect(DeisImportacion::sole())
+        ->estado->toBe(DeisImportacion::ESTADO_FALLIDO)
+        ->mensaje->toBe(DEIS_MENSAJE_DESCARGA);
+    $this->assertDatabaseCount('deis_atenciones_urgencia', 0);
+})->with([500, 503, 429, 403]);
+
+it('calcula el año actual con la hora de Chile', function () {
+    Http::preventStrayRequests();
+    // 01/01/2027 02:00 UTC es aún 31/12/2026 en Santiago.
+    $this->travelTo(Carbon::parse('2027-01-01 02:00:00', 'UTC'));
+    Http::fake(['*' => Http::response('', 200)]);
+
+    expect(app(DeisImportService::class)->resolverUrl('urgencias'))->toBe(deisUrlAnual('urgencias', 2026));
+});
+
+it('marca como fallida la importación si ningún año reciente está publicado, sin descargar nada', function () {
+    Http::preventStrayRequests();
+    $this->travelTo('2026-11-02 12:00:00');
+    config(['deis.datasets.egresos.busqueda.anios' => 3]);
+    Http::fake(['*' => Http::response('Not Found', 404)]);
+
+    expect(fn () => app(DeisImportService::class)->importar('egresos'))
+        ->toThrow(RuntimeException::class, 'No se encontró una publicación vigente');
+
+    Http::assertSentCount(3);
+    Http::assertNotSent(fn (Request $request) => $request->method() === 'GET');
+    foreach ([2026, 2025, 2024] as $anio) {
+        Http::assertSent(fn (Request $request) => $request->url() === deisUrlAnual('egresos', $anio));
+    }
+    expect(DeisImportacion::sole())
+        ->estado->toBe(DeisImportacion::ESTADO_FALLIDO)
+        ->origen->toBe(config('deis.datasets.egresos.busqueda.patron'))
+        ->mensaje->toBe(DEIS_MENSAJE_DESCARGA);
+});
+
+it('marca como fallida la importación con el mensaje simple si no hay conexión al buscar la publicación', function (string $dataset) {
+    Http::preventStrayRequests();
+    Http::fake(['*' => Http::failedConnection()]);
+    Log::spy();
+
+    expect(fn () => app(DeisImportService::class)->importar($dataset))
+        ->toThrow(RuntimeException::class, 'No se pudo conectar');
+
+    Http::assertSentCount(1);
+    expect(DeisImportacion::sole())
+        ->estado->toBe(DeisImportacion::ESTADO_FALLIDO)
+        ->mensaje->toBe(DEIS_MENSAJE_DESCARGA);
+    Log::shouldHaveReceived('error')->withArgs(fn (string $mensaje) => str_contains($mensaje, 'No se pudo conectar'))->once();
+})->with(DeisImportacion::DATASETS);
+
+it('la URL fijada en el .env desactiva la búsqueda', function (string $dataset) {
+    Http::preventStrayRequests();
+    $this->travelTo('2026-11-02 12:00:00');
+    $fijada = "https://espejo.example.cl/deis/{$dataset}.zip";
+    config(["deis.datasets.{$dataset}.url" => $fijada]);
+    Http::fake([$fijada => Http::response('Not Found', 404), '*' => Http::response('', 200)]);
+
+    expect(fn () => app(DeisImportService::class)->importar($dataset))
+        ->toThrow(RuntimeException::class, 'falló (HTTP 404)');
+
+    Http::assertSentCount(1);
+    Http::assertSent(fn (Request $request) => $request->method() === 'GET' && $request->url() === $fijada);
+    expect(DeisImportacion::sole()->origen)->toBe($fijada);
+})->with(DeisImportacion::DATASETS);
+
+it('busca la publicación vigente de defunciones por la fecha del nombre del archivo', function () {
+    Http::preventStrayRequests();
+    $this->travelTo('2026-11-10 12:00:00');
+    $vigente = deisUrlDefunciones('2024_2026', '03112026');
+    $zip = File::get(deisZip($this->directorio, 'DEFUNCIONES.csv', deisCsv([deisFilaDefuncion()])));
+    Http::fake(fn (Request $request) => $request->url() === $vigente ? Http::response($zip) : Http::response('Not Found', 404));
+
+    $importacion = app(DeisImportService::class)->importar('defunciones');
+
+    expect($importacion->fresh())
+        ->estado->toBe(DeisImportacion::ESTADO_COMPLETADO)
+        ->origen->toBe($vigente);
+    Http::assertSent(fn (Request $request) => $request->method() === 'GET' && $request->url() === $vigente);
+    Http::assertNotSent(fn (Request $request) => $request->url() === deisUrlDefunciones('2024_2026', '02112026'));
+    $this->assertDatabaseHas('deis_defunciones', ['anio' => 2024, 'total' => 1]);
+});
+
+it('el resolvedor contempla el cambio de año en el rango del nombre del archivo', function (string $hoy, string $vigente) {
+    Http::preventStrayRequests();
+    $this->travelTo($hoy);
+    Http::fake(fn (Request $request) => Http::response('', $request->url() === $vigente ? 200 : 404));
+
+    expect(app(DeisImportService::class)->resolverUrl('defunciones'))->toBe($vigente);
+})->with([
+    'rango que aún termina el año anterior' => ['2027-01-05 12:00:00', deisUrlDefunciones('2024_2026', '29122026')],
+    'rango que ya termina el año actual' => ['2027-01-12 12:00:00', deisUrlDefunciones('2025_2027', '11012027')],
+]);
+
+it('si no encuentra una publicación vigente de defunciones marca la importación como fallida con un aviso simple', function () {
+    Http::preventStrayRequests();
+    $this->travelTo('2026-12-31 12:00:00');
+    config(['deis.datasets.defunciones.busqueda.dias' => 21]);
+    Http::fake(fn () => Http::response('Not Found', 404));
+
+    expect(fn () => app(DeisImportService::class)->importar('defunciones'))
+        ->toThrow(RuntimeException::class, 'No se encontró una publicación vigente');
+
+    // 22 fechas por 2 rangos de años, sin descarga.
+    Http::assertSentCount(22 * 2);
+    expect(DeisImportacion::sole())
+        ->origen->toBe(config('deis.datasets.defunciones.busqueda.patron'))
+        ->mensaje->toBe(DEIS_MENSAJE_DESCARGA);
+});
+
+it('el resolvedor falla sin consultar nada si el dataset no tiene patrón de búsqueda', function () {
+    Http::preventStrayRequests();
+    config(['deis.datasets.egresos.busqueda' => null]);
+
+    expect(fn () => app(DeisImportService::class)->resolverUrl('egresos'))
+        ->toThrow(RuntimeException::class, 'patrón de búsqueda');
+
+    Http::assertNothingSent();
+});
+
+it('no aplica el resolvedor cuando el comando recibe una URL explícita', function () {
+    Http::preventStrayRequests();
+    $url = deisUrlDefunciones('2024_2026', '01012020');
+    Http::fake([$url => Http::response('Not Found', 404)]);
+
+    $this->artisan('deis:importar', ['dataset' => 'defunciones', '--url' => $url])
+        ->expectsOutputToContain('falló (HTTP 404)')
+        ->assertFailed();
+
+    Http::assertSentCount(1);
+});
+
+it('el job omite una importación pendiente si hay otra más reciente del mismo dataset', function (string $estadoMasReciente) {
+    Http::preventStrayRequests();
+    $antigua = deisImportacionEnEstado('egresos', DeisImportacion::ESTADO_PENDIENTE, ['created_at' => now()->subDays(3)]);
+    deisImportacionEnEstado('egresos', $estadoMasReciente);
+    deisImportacionEnEstado('urgencias', DeisImportacion::ESTADO_PENDIENTE);
+
+    ImportarDatasetDeis::dispatchSync('egresos', $antigua->id);
+
+    expect($antigua->fresh())
+        ->estado->toBe(DeisImportacion::ESTADO_FALLIDO)
+        ->mensaje->toBe('Se omitió porque hubo una actualización más reciente.')
+        ->finalizado_en->not->toBeNull();
+    Http::assertNothingSent();
+})->with(DeisImportacion::ESTADOS);
+
+it('el job omite una importación pendiente si se completó otra creada después aunque tenga un id menor', function () {
+    Http::preventStrayRequests();
+    DeisImportacion::factory()->delDataset('urgencias')->create(['created_at' => now()]);
+    $pendiente = deisImportacionEnEstado('urgencias', DeisImportacion::ESTADO_PENDIENTE, ['created_at' => now()->subDay()]);
+
+    ImportarDatasetDeis::dispatchSync('urgencias', $pendiente->id);
+
+    expect($pendiente->fresh())
+        ->estado->toBe(DeisImportacion::ESTADO_FALLIDO)
+        ->mensaje->toBe(ImportarDatasetDeis::MENSAJE_OMITIDA);
+    Http::assertNothingSent();
+});
+
+it('el job no toca una importación que ya no está pendiente', function (string $estado) {
+    Http::preventStrayRequests();
+    $importacion = deisImportacionEnEstado('defunciones', $estado, ['updated_at' => now()->subHour()]);
+    $antes = $importacion->fresh()->only(['estado', 'mensaje', 'finalizado_en', 'updated_at']);
+
+    ImportarDatasetDeis::dispatchSync('defunciones', $importacion->id);
+
+    expect($importacion->fresh()->only(['estado', 'mensaje', 'finalizado_en', 'updated_at']))->toEqual($antes);
+    Http::assertNothingSent();
+})->with([DeisImportacion::ESTADO_PROCESANDO, DeisImportacion::ESTADO_COMPLETADO, DeisImportacion::ESTADO_FALLIDO]);

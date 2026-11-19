@@ -365,11 +365,35 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 text-xs">
+            <div class="flex flex-wrap items-center gap-2 text-xs">
                 <span class="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#475569] border border-[#CBD5E1] shadow-2xs">
                     <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
                     Corte actual: <strong>{{ $mesNombre }} (Mes {{ $mes }})</strong>
                 </span>
+
+                <a
+                    href="{{ route('centro-mando.exportar.excel', request()->query()) }}"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition-colors"
+                    title="Descargar resumen, indicadores y predicciones en Excel (.xlsx)"
+                >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    <span>Excel</span>
+                </a>
+
+                <a
+                    href="{{ route('centro-mando.exportar.pdf', request()->query()) }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-rose-700 transition-colors"
+                    title="Abrir vista imprimible para guardar como PDF"
+                >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.32 0l-.229-2.523M9 9.75h6M9 13.5h6M9 6.75h6" />
+                    </svg>
+                    <span>PDF</span>
+                </a>
             </div>
         </div>
 

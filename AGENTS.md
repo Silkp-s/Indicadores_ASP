@@ -10,7 +10,7 @@ Main modules: `centro-mando` dashboard, `iaaps-metas`, `establecimientos`, `impo
 
 ## Commands
 
-- Dev: `composer run dev` (runs `php artisan dev`: HTTP server on `:8000`, queue listener, and Vite).
+- Dev: `composer run dev` (runs `php artisan dev`: HTTP server on `:8000`, queue listener, scheduler (`schedule:work`, registered in `AppServiceProvider`), and Vite).
 - Frontend: `npm run build` after CSS/JS changes; `npm run dev` for watch mode. A Vite manifest error means the build has not been run.
 - Tests: `php artisan test --compact [path] [--filter=name]` or `vendor/bin/pest [path] [--filter=name]`. `composer test` clears config and runs the whole suite.
 - Format PHP: `vendor/bin/pint --dirty --format agent`.

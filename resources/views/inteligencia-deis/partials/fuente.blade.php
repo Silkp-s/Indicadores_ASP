@@ -1,4 +1,4 @@
-{{-- Tarjeta "Fuente": dataset DEIS, última importación completada y tablero SST relacionado --}}
+{{-- Tarjeta "Fuente": conjunto de datos DEIS, años disponibles, última actualización y tablero SST relacionado --}}
 <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#E2E8F0] bg-white px-5 py-4 shadow-xs">
     <div class="flex min-w-0 items-start gap-3">
         <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-950 shadow-xs">
@@ -13,18 +13,25 @@
                 <p class="text-xs text-[#64748B]">{{ $fuente['descripcion'] }}</p>
             @endif
 
-            @if ($fuente['importacion'])
+            @if ($fuente['importacion'] || $fuente['anios'] !== [])
                 <p class="mt-1 break-words text-xs text-[#475569]">
-                    Última importación: <strong class="text-brand-950">{{ $fuente['importacion']->finalizado_en?->format('d/m/Y H:i') ?? 'sin fecha' }}</strong>
-                    · Origen:
+                    @if ($fuente['anios'] !== [])
+                        Datos {{ count($fuente['anios']) === 1 ? 'del año' : 'de los años' }} <strong class="text-brand-950">{{ collect($fuente['anios'])->sort()->implode(', ') }}</strong> ·
+                    @endif
+                    @if ($fuente['importacion'])
+                        Última actualización: <strong class="text-brand-950">{{ $fuente['importacion']->finalizado_en?->format('d/m/Y H:i') ?? 'sin fecha' }}</strong> ·
+                    @endif
+                    Origen:
                     @if ($fuente['origen']['url'])
-                        <a href="{{ $fuente['origen']['url'] }}" target="_blank" rel="noopener noreferrer" class="font-medium text-accent-600 hover:underline">{{ $fuente['origen']['archivo'] }}</a>
+                        <a href="{{ $fuente['origen']['url'] }}" target="_blank" rel="noopener noreferrer" class="font-medium text-accent-600 hover:underline">{{ $fuente['origen']['nombre'] }}</a>
                     @else
-                        {{ $fuente['origen']['archivo'] }} (archivo local)
+                        {{ $fuente['origen']['nombre'] }}
                     @endif
                 </p>
+            @elseif ($cargando ?? false)
+                <p class="mt-1 text-xs font-semibold text-accent-600">Cargando datos: la información se está obteniendo desde el DEIS.</p>
             @else
-                <p class="mt-1 text-xs font-semibold text-status-warn-fg">Sin importar: aún no hay una importación completada de este dataset.</p>
+                <p class="mt-1 text-xs font-semibold text-status-warn-fg">Aún no hay datos cargados de este conjunto.</p>
             @endif
         </div>
     </div>

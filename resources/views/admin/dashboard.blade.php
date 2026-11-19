@@ -651,63 +651,80 @@
                         <tbody class="divide-y divide-[#E2E8F0]" id="rem-admin-filas">
                             @forelse ($remMappings as $map)
                                 @php
-                                    $mapJson = json_encode([
-                                        'id' => $map->id,
-                                        'indicadores_id' => $map->indicadores_id,
-                                        'hoja' => $map->hoja,
-                                        'celda_numerador' => $map->celda_numerador,
-                                        'celda_denominador' => $map->celda_denominador,
-                                        'seccion' => $map->seccion,
-                                        'descripcion' => $map->descripcion,
-                                        'is_active' => (bool) $map->is_active,
-                                        'url_actualizar' => route('admin.rem-mappings.update', $map),
-                                    ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+                                    $override = $map['override'];
+
+                                    $mappingJson = $override ? json_encode([
+                                        'id' => $override->id,
+                                        'indicadores_id' => $override->indicadores_id,
+                                        'hoja' => $override->hoja,
+                                        'celda_numerador' => $override->celda_numerador,
+                                        'celda_denominador' => $override->celda_denominador,
+                                        'seccion' => $override->seccion,
+                                        'descripcion' => $override->descripcion,
+                                        'is_active' => (bool) $override->is_active,
+                                        'url_actualizar' => route('admin.rem-mappings.update', $override),
+                                    ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) : null;
+
+                                    $defaultJson = $map['origen'] === 'predeterminado' ? json_encode([
+                                        'indicadores_id' => $map['indicadores_id'],
+                                        'hoja' => $map['hoja'],
+                                        'celda_numerador' => $map['celda_numerador'],
+                                        'celda_denominador' => $map['celda_denominador'],
+                                        'seccion' => $map['seccion'],
+                                        'descripcion' => $map['descripcion'],
+                                    ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) : null;
                                 @endphp
-                                <tr class="hover:bg-[#F8FAFC]/80 transition-colors" data-mapping="{{ $mapJson }}">
+                                <tr
+                                    class="hover:bg-[#F8FAFC]/80 transition-colors"
+                                    @if ($mappingJson) data-mapping="{{ $mappingJson }}" @endif
+                                    @if ($defaultJson) data-rem-default="{{ $defaultJson }}" @endif
+                                >
                                     {{-- Indicador --}}
                                     <td class="px-5 py-3.5">
                                         <div class="flex items-center gap-2">
                                             <span class="inline-block font-mono font-bold text-xs bg-[#F1F5F9] px-2 py-0.5 rounded border border-[#CBD5E1] text-brand-950">
-                                                {{ $map->indicador?->codigo ?? 'N/A' }}
+                                                {{ $map['codigo'] }}
                                             </span>
                                             <span class="font-medium text-brand-950 line-clamp-1">
-                                                {{ $map->indicador?->nombre ?? 'Indicador eliminado' }}
+                                                {{ $map['nombre'] }}
                                             </span>
                                         </div>
                                     </td>
 
                                     {{-- Tipo --}}
                                     <td class="px-5 py-3.5 whitespace-nowrap">
-                                        @if ($map->indicador?->tipo === 'Meta Sanitaria')
+                                        @if ($map['tipo'] === 'Meta Sanitaria')
                                             <span class="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
                                                 Meta Sanitaria
                                             </span>
-                                        @else
+                                        @elseif ($map['tipo'] === 'IAAPS')
                                             <span class="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200">
                                                 IAAPS
                                             </span>
+                                        @else
+                                            <span class="text-xs text-[#94A3B8]">—</span>
                                         @endif
                                     </td>
 
                                     {{-- Hoja REM --}}
                                     <td class="px-5 py-3.5 whitespace-nowrap">
                                         <span class="inline-flex rounded-md bg-brand-950 px-2.5 py-1 text-xs font-bold text-white font-mono">
-                                            REM-{{ $map->hoja }}
+                                            REM-{{ $map['hoja'] }}
                                         </span>
                                     </td>
 
                                     {{-- Celda Numerador --}}
                                     <td class="px-5 py-3.5 font-mono text-xs font-bold text-blue-800 whitespace-nowrap">
                                         <span class="bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                                            {{ $map->celda_numerador }}
+                                            {{ $map['celda_numerador'] }}
                                         </span>
                                     </td>
 
                                     {{-- Celda Denominador --}}
                                     <td class="px-5 py-3.5 font-mono text-xs whitespace-nowrap">
-                                        @if ($map->celda_denominador)
+                                        @if ($map['celda_denominador'])
                                             <span class="bg-purple-50 text-purple-800 px-2 py-0.5 rounded border border-purple-200 font-bold">
-                                                {{ $map->celda_denominador }}
+                                                {{ $map['celda_denominador'] }}
                                             </span>
                                         @else
                                             <span class="text-[#94A3B8] italic">Población / Meta</span>
@@ -716,96 +733,114 @@
 
                                     {{-- Sección / Descripción --}}
                                     <td class="px-5 py-3.5 text-xs text-[#64748B]">
-                                        @if ($map->seccion)
-                                            <span class="font-semibold text-brand-950 block">{{ $map->seccion }}</span>
+                                        @if ($map['seccion'])
+                                            <span class="font-semibold text-brand-950 block">{{ $map['seccion'] }}</span>
                                         @endif
-                                        <span class="line-clamp-1">{{ $map->descripcion ?: '—' }}</span>
+                                        <span class="line-clamp-1">{{ $map['descripcion'] ?: '—' }}</span>
                                     </td>
 
-                                    {{-- Estado --}}
+                                    {{-- Origen / Estado --}}
                                     <td class="px-5 py-3.5 text-center whitespace-nowrap">
-                                        @if ($map->is_active)
+                                        @if ($map['origen'] === 'predeterminado')
+                                            <span class="inline-flex rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-semibold text-brand-950">
+                                                Predeterminado
+                                            </span>
+                                        @elseif ($map['is_active'])
                                             <span class="inline-flex rounded-full bg-status-ok-bg px-2.5 py-0.5 text-xs font-semibold text-status-ok-fg">
-                                                Activo
+                                                Personalizado · Activo
                                             </span>
                                         @else
                                             <span class="inline-flex rounded-full bg-[#F1F5F9] px-2.5 py-0.5 text-xs font-semibold text-[#64748B]">
-                                                Inactivo
+                                                Personalizado · Inactivo
                                             </span>
                                         @endif
                                     </td>
 
                                     {{-- Acciones --}}
                                     <td class="px-5 py-3.5 text-right whitespace-nowrap">
-                                        <div class="flex items-center justify-end gap-1.5">
-                                            {{-- Editar --}}
+                                        @if ($override)
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                {{-- Editar --}}
+                                                <button
+                                                    type="button"
+                                                    data-accion="editar-rem"
+                                                    class="rounded-lg p-1.5 text-[#64748B] hover:bg-[#F1F5F9] hover:text-brand-950 transition-colors"
+                                                    title="Modificar celdas de extracción"
+                                                    aria-label="Editar mapeo REM"
+                                                >
+                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </button>
+
+                                                {{-- Cambiar estado --}}
+                                                <form
+                                                    method="POST"
+                                                    action="{{ route('admin.rem-mappings.estado', $override) }}"
+                                                    class="inline"
+                                                    data-confirmar="{{ $override->is_active ? '¿Está seguro que desea cambiar el estado a inactivo?' : '¿Está seguro que desea cambiar el estado a activo?' }}"
+                                                >
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <input type="hidden" name="is_active" value="{{ $override->is_active ? 0 : 1 }}">
+                                                    <button
+                                                        type="submit"
+                                                        @class([
+                                                            'rounded-lg p-1.5 transition-colors',
+                                                            'text-status-warn-fg hover:bg-status-warn-bg/60' => $override->is_active,
+                                                            'text-status-ok-fg hover:bg-status-ok-bg/60' => ! $override->is_active,
+                                                        ])
+                                                        title="{{ $override->is_active ? 'Desactivar mapeo' : 'Activar mapeo' }}"
+                                                        aria-label="{{ $override->is_active ? 'Desactivar mapeo' : 'Activar mapeo' }}"
+                                                    >
+                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                                                        </svg>
+                                                    </button>
+                                                </form>
+
+                                                {{-- Eliminar (restablece el predeterminado) --}}
+                                                <form
+                                                    method="POST"
+                                                    action="{{ route('admin.rem-mappings.destroy', $override) }}"
+                                                    class="inline form-eliminar"
+                                                    data-swal-title="¿Eliminar mapeo REM?"
+                                                    data-swal-text="¿Confirmas que deseas eliminar este mapeo personalizado para la hoja {{ $override->hoja }} celda {{ $override->celda_numerador }}? Se volverá a usar el mapeo predeterminado."
+                                                    data-swal-confirm="Sí, eliminar mapeo"
+                                                >
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button
+                                                        type="submit"
+                                                        class="rounded-lg p-1.5 text-status-bad-fg hover:bg-status-bad-bg/60 transition-colors"
+                                                        title="Restablecer al predeterminado (eliminar override)"
+                                                        aria-label="Eliminar mapeo"
+                                                    >
+                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        @else
                                             <button
                                                 type="button"
-                                                data-accion="editar-rem"
+                                                data-accion="personalizar-rem"
                                                 class="rounded-lg p-1.5 text-[#64748B] hover:bg-[#F1F5F9] hover:text-brand-950 transition-colors"
-                                                title="Modificar celdas de extracción"
-                                                aria-label="Editar mapeo REM"
+                                                title="Personalizar mapeo (crear override)"
+                                                aria-label="Personalizar mapeo"
                                             >
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                                                 </svg>
                                             </button>
-
-                                            {{-- Cambiar estado --}}
-                                            <form
-                                                method="POST"
-                                                action="{{ route('admin.rem-mappings.estado', $map) }}"
-                                                class="inline"
-                                                data-confirmar="{{ $map->is_active ? '¿Está seguro que desea cambiar el estado a inactivo?' : '¿Está seguro que desea cambiar el estado a activo?' }}"
-                                            >
-                                                @csrf
-                                                @method('PATCH')
-                                                <input type="hidden" name="is_active" value="{{ $map->is_active ? 0 : 1 }}">
-                                                <button
-                                                    type="submit"
-                                                    @class([
-                                                        'rounded-lg p-1.5 transition-colors',
-                                                        'text-status-warn-fg hover:bg-status-warn-bg/60' => $map->is_active,
-                                                        'text-status-ok-fg hover:bg-status-ok-bg/60' => ! $map->is_active,
-                                                    ])
-                                                    title="{{ $map->is_active ? 'Desactivar mapeo' : 'Activar mapeo' }}"
-                                                    aria-label="{{ $map->is_active ? 'Desactivar mapeo' : 'Activar mapeo' }}"
-                                                >
-                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
-                                                    </svg>
-                                                </button>
-                                            </form>
-
-                                            {{-- Eliminar --}}
-                                            <form
-                                                method="POST"
-                                                action="{{ route('admin.rem-mappings.destroy', $map) }}"
-                                                class="inline form-eliminar"
-                                                data-swal-title="¿Eliminar mapeo REM?"
-                                                data-swal-text="¿Confirmas que deseas eliminar este mapeo de celda para la hoja {{ $map->hoja }} celda {{ $map->celda_numerador }}?"
-                                                data-swal-confirm="Sí, eliminar mapeo"
-                                            >
-                                                @csrf
-                                                @method('DELETE')
-                                                <button
-                                                    type="submit"
-                                                    class="rounded-lg p-1.5 text-status-bad-fg hover:bg-status-bad-bg/60 transition-colors"
-                                                    title="Eliminar mapeo"
-                                                    aria-label="Eliminar mapeo"
-                                                >
-                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
-                                            </form>
-                                        </div>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
                                     <td colspan="8" class="px-5 py-12 text-center text-sm text-[#64748B]">
-                                        No se encontraron mapeos de celdas REM registrados.
+                                        No se encontraron mapeos de celdas REM.
                                     </td>
                                 </tr>
                             @endforelse
@@ -1235,44 +1270,52 @@
             }
         });
 
+        const prepararFormularioRem = (datos) => {
+            formRem.reset();
+            const editando = Boolean(datos && datos.url_actualizar);
+
+            document.getElementById('form-admin-rem-titulo').textContent = editando
+                ? `Editar Mapeo REM-${datos.hoja}`
+                : (datos ? `Personalizar Mapeo REM-${datos.hoja}` : 'Nuevo Mapeo de Celda REM');
+
+            formRem.action = editando ? datos.url_actualizar : formRem.dataset.urlCrear;
+            formRem.elements._method.disabled = ! editando;
+            formRem.elements.mapping_id.value = editando ? datos.id : '';
+
+            formRem.elements.indicadores_id.value = datos?.indicadores_id ?? '';
+            formRem.elements.hoja.value = datos?.hoja ?? '';
+            formRem.elements.celda_numerador.value = datos?.celda_numerador ?? '';
+            formRem.elements.celda_denominador.value = datos?.celda_denominador ?? '';
+            formRem.elements.seccion.value = datos?.seccion ?? '';
+            formRem.elements.descripcion.value = datos?.descripcion ?? '';
+            formRem.elements.is_active.value = datos && datos.is_active === false ? '0' : '1';
+        };
+
         document.querySelector('[data-abrir-nuevo-rem]')?.addEventListener('click', () => {
-            document.getElementById('form-admin-rem-titulo').textContent = 'Nuevo Mapeo de Celda REM';
-            formRem.action = formRem.dataset.urlCrear;
-            formRem.elements._method.disabled = true;
-            formRem.elements.mapping_id.value = '';
-
-            formRem.elements.indicadores_id.value = '';
-            formRem.elements.hoja.value = '';
-            formRem.elements.celda_numerador.value = '';
-            formRem.elements.celda_denominador.value = '';
-            formRem.elements.seccion.value = '';
-            formRem.elements.descripcion.value = '';
-            formRem.elements.is_active.value = '1';
-
+            prepararFormularioRem(null);
             abrirModalRem();
         });
 
         document.getElementById('rem-admin-filas')?.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-accion="editar-rem"]');
-            if (!btn) return;
+            const btnEditar = e.target.closest('[data-accion="editar-rem"]');
 
-            const tr = btn.closest('tr');
-            if (!tr || !tr.dataset.mapping) return;
+            if (btnEditar) {
+                const tr = btnEditar.closest('tr');
+                if (!tr || !tr.dataset.mapping) return;
 
-            const datos = JSON.parse(tr.dataset.mapping);
-            document.getElementById('form-admin-rem-titulo').textContent = `Editar Mapeo REM-${datos.hoja}`;
-            formRem.action = datos.url_actualizar;
-            formRem.elements._method.disabled = false;
-            formRem.elements.mapping_id.value = datos.id;
+                prepararFormularioRem(JSON.parse(tr.dataset.mapping));
+                abrirModalRem();
 
-            formRem.elements.indicadores_id.value = datos.indicadores_id ?? '';
-            formRem.elements.hoja.value = datos.hoja ?? '';
-            formRem.elements.celda_numerador.value = datos.celda_numerador ?? '';
-            formRem.elements.celda_denominador.value = datos.celda_denominador ?? '';
-            formRem.elements.seccion.value = datos.seccion ?? '';
-            formRem.elements.descripcion.value = datos.descripcion ?? '';
-            formRem.elements.is_active.value = datos.is_active ? '1' : '0';
+                return;
+            }
 
+            const btnPersonalizar = e.target.closest('[data-accion="personalizar-rem"]');
+            if (!btnPersonalizar) return;
+
+            const tr = btnPersonalizar.closest('tr');
+            if (!tr || !tr.dataset.remDefault) return;
+
+            prepararFormularioRem(JSON.parse(tr.dataset.remDefault));
             abrirModalRem();
         });
 
