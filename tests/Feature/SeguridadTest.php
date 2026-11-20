@@ -5,6 +5,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
@@ -118,4 +119,66 @@ test('los mensajes flash se escapan antes de inyectarse en javascript', function
         ->get(route('centro-mando'))
         ->assertOk()
         ->assertDontSee($payload, false);
+});
+
+test('todas las respuestas llevan las cabeceras de seguridad', function () {
+    $respuesta = $this->get('/');
+
+    $respuesta->assertHeader('X-Frame-Options', 'SAMEORIGIN')
+        ->assertHeader('X-Content-Type-Options', 'nosniff')
+        ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+        ->assertHeaderMissing('Strict-Transport-Security');
+
+    $this->get('https://localhost/')->assertHeader('Strict-Transport-Security', 'max-age=31536000');
+});
+
+test('un administrador no puede quitarse su propio rol de administrador', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('Admin');
+
+    $this->actingAs($admin)
+        ->put(route('admin.users.update', $admin), [
+            'name' => $admin->name,
+            'apellido' => 'DAS',
+            'email' => $admin->email,
+            'role' => 'Usuario',
+        ])
+        ->assertSessionHasErrors('role');
+
+    expect($admin->fresh()->hasRole('Admin'))->toBeTrue();
+});
+
+test('un periodo manipulado en la url no rompe las paginas', function (string $ruta) {
+    $this->actingAs($this->usuario)
+        ->get(route($ruta).'?periodo[]=2026-06')
+        ->assertOk();
+
+    $this->actingAs($this->usuario)
+        ->get(route($ruta, ['periodo' => '2026-06/../x']))
+        ->assertOk();
+})->with(['centro-mando', 'iaaps-metas.index', 'alertas.index']);
+
+test('la importacion de planillas tiene un limite de uso por minuto', function () {
+    Cache::flush();
+
+    for ($intento = 1; $intento <= 10; $intento++) {
+        $this->actingAs($this->usuario)
+            ->postJson(route('importacion.previsualizar'))
+            ->assertStatus(422);
+    }
+
+    $this->actingAs($this->usuario)
+        ->postJson(route('importacion.previsualizar'))
+        ->assertStatus(429);
+});
+
+test('en produccion el seeder no deja la clave publica "password" en las cuentas', function () {
+    app()->detectEnvironment(fn () => 'production');
+
+    $this->artisan('db:seed', ['--force' => true])->assertSuccessful();
+
+    $admin = User::where('email', 'admin@das.cl')->firstOrFail();
+
+    expect(Hash::check('password', $admin->password))->toBeFalse()
+        ->and($admin->hasRole('Admin'))->toBeTrue();
 });

@@ -5,6 +5,8 @@ use App\Models\Indicador;
 use App\Models\IndicadorMedida;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
@@ -60,4 +62,38 @@ test('el centro de mando muestra la vista imprimible con el detalle de prediccio
 test('un invitado no puede exportar el centro de mando', function () {
     $this->get(route('centro-mando.exportar.excel'))->assertRedirect(route('login'));
     $this->get(route('centro-mando.exportar.pdf'))->assertRedirect(route('login'));
+});
+
+test('el excel incluye todas las mediciones y guarda los nombres como texto, no como formulas', function () {
+    $otro = Indicador::factory()->create([
+        'codigo' => 'MS-02',
+        'nombre' => '=HYPERLINK("http://example.com","clic")',
+        'tipo' => 'Meta Sanitaria',
+        'target_value' => 80,
+    ]);
+
+    IndicadorMedida::create([
+        'indicadores_id' => $otro->id,
+        'establecimientos_id' => $this->establecimiento->id,
+        'ano' => 2026,
+        'mes' => 6,
+        'numerador_value' => 50,
+        'denominador_value' => 100,
+        'porcentaje_cumplimiento' => 50,
+        'status' => 'Crítico',
+    ]);
+
+    $respuesta = $this->actingAs($this->user)
+        ->get(route('centro-mando.exportar.excel', ['periodo' => '2026-06']));
+
+    $hoja = IOFactory::load($respuesta->getFile()->getPathname())->getSheetByName('Indicadores');
+
+    expect($hoja->getCell('A1')->getValue())->toBe('Código')
+        ->and($hoja->getHighestRow())->toBe(3);
+
+    $celdaNombre = collect([2, 3])
+        ->map(fn ($fila) => $hoja->getCell([2, $fila]))
+        ->first(fn ($celda) => str_starts_with((string) $celda->getValue(), '='));
+
+    expect($celdaNombre->getDataType())->toBe(DataType::TYPE_STRING);
 });

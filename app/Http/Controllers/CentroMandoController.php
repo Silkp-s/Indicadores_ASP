@@ -7,7 +7,9 @@ use App\Models\IndicadorMedida;
 use App\Services\ProyeccionEstadisticaService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -42,7 +44,7 @@ class CentroMandoController extends Controller
 
         $resumen = $spreadsheet->getActiveSheet();
         $resumen->setTitle('Resumen');
-        $resumen->fromArray([
+        $this->escribirFilas($resumen, [
             ['Centro de Mando Ejecutivo'],
             ['Periodo', $datos['periodoSeleccionado']],
             ['Establecimiento', $datos['establecimientoNombre']],
@@ -66,12 +68,12 @@ class CentroMandoController extends Controller
 
         $indicadores = $spreadsheet->createSheet();
         $indicadores->setTitle('Indicadores');
-        $indicadores->fromArray([
+        $filasIndicadores = [
             ['Código', 'Nombre', 'Tipo', 'Establecimiento', 'Numerador', 'Denominador', 'Cumplimiento (%)', 'Meta (%)', 'Estado', 'Brecha'],
-        ]);
+        ];
 
         foreach ($datos['medidas'] as $medida) {
-            $indicadores->fromArray([
+            $filasIndicadores[] = [
                 $medida->indicador?->codigo ?? 'N/A',
                 $medida->indicador?->nombre ?? 'Sin nombre',
                 $medida->indicador?->tipo ?? 'Meta',
@@ -82,17 +84,19 @@ class CentroMandoController extends Controller
                 (float) ($medida->indicador?->target_value ?? 100),
                 $medida->status,
                 round((float) $medida->porcentaje_cumplimiento - (float) ($medida->indicador?->target_value ?? 100), 1),
-            ]);
+            ];
         }
+
+        $this->escribirFilas($indicadores, $filasIndicadores);
 
         $predicciones = $spreadsheet->createSheet();
         $predicciones->setTitle('Predicciones');
-        $predicciones->fromArray([
+        $filasPredicciones = [
             ['Código', 'Nombre', 'Tipo', 'Cumplimiento actual (%)', 'Regresión lineal (%)', 'Media móvil (%)', 'Proyección anual (%)', 'Brecha proyectada', 'Estado anticipado', 'Mes logro estimado', 'Confianza modelo (%)', 'Alerta ejecutiva'],
-        ]);
+        ];
 
         foreach ($proyecciones['indicadores_proyectados'] ?? [] as $proyeccion) {
-            $predicciones->fromArray([
+            $filasPredicciones[] = [
                 $proyeccion['codigo'] ?? 'N/A',
                 $proyeccion['nombre'] ?? 'Sin nombre',
                 $proyeccion['tipo'] ?? 'Meta',
@@ -105,8 +109,10 @@ class CentroMandoController extends Controller
                 $proyeccion['mes_logro_estimado'] ?? null,
                 $proyeccion['confianza_modelo'] ?? null,
                 $proyeccion['alerta_ejecutiva'] ?? null,
-            ]);
+            ];
         }
+
+        $this->escribirFilas($predicciones, $filasPredicciones);
 
         foreach ($spreadsheet->getAllSheets() as $hoja) {
             foreach (range('A', $hoja->getHighestColumn()) as $columna) {
@@ -123,6 +129,31 @@ class CentroMandoController extends Controller
             'centro-mando-'.$datos['periodoSeleccionado'].'.xlsx',
             ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
         )->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Escribe una fila por elemento desde la fila 1. El texto se guarda siempre como texto:
+     * un nombre que empiece con "=" no debe convertirse en una fórmula de Excel.
+     *
+     * @param  array<int, array<int, mixed>>  $filas
+     */
+    private function escribirFilas(Worksheet $hoja, array $filas): void
+    {
+        foreach ($filas as $i => $fila) {
+            foreach (array_values($fila) as $j => $valor) {
+                if ($valor === null) {
+                    continue;
+                }
+
+                $celda = [$j + 1, $i + 1];
+
+                if (is_string($valor)) {
+                    $hoja->setCellValueExplicit($celda, $valor, DataType::TYPE_STRING);
+                } else {
+                    $hoja->setCellValue($celda, $valor);
+                }
+            }
+        }
     }
 
     /**
@@ -163,8 +194,9 @@ class CentroMandoController extends Controller
                 ];
             });
 
-        // Determinar periodo activo (filtro o el más reciente)
-        if ($request->filled('periodo') && str_contains($request->input('periodo'), '-')) {
+        // Determinar periodo activo (filtro o el más reciente). Solo se acepta AAAA-MM: el valor
+        // termina en el nombre del archivo exportado y otro formato rompería la descarga.
+        if (is_string($request->input('periodo')) && preg_match('/^\d{4}-(0?[1-9]|1[0-2])$/', $request->input('periodo'))) {
             $partes = explode('-', $request->input('periodo'));
             $año = (int) $partes[0];
             $mes = (int) $partes[1];

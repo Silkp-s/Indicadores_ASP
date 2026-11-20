@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CabecerasDeSeguridad;
 use App\Http\Middleware\RedirectIfNotAdmin;
 use App\Http\Middleware\RegistrarNotificacionDeAccion;
 use Illuminate\Foundation\Application;
@@ -27,6 +28,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             RegistrarNotificacionDeAccion::class,
         ]);
+
+        $middleware->append(CabecerasDeSeguridad::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
