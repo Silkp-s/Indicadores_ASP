@@ -135,12 +135,11 @@ tests/                  # Pruebas Pest (Feature / Unit)
 - [Documento de Diseño del Sistema (SDD)](docs/sdd.md)
 
 ## Equipo
-
-| Rol | Estudiante |
-| :--- | :--- |
-| Tech Lead | Vincent Arias |
-| Alertas / Integraciones | Ignacio Gutiérrez |
-| Integraciones DEIS | Matías Jerez |
+| Estudiante |
+| :--- |
+| Vincent Arias |
+| Ignacio Gutiérrez |
+| Matías Jerez |
 
 - **Organización:** Dirección de Administración de Salud (DAS) Talcahuano
 - **Supervisor de la organización:** Emmanuel Cáceres
