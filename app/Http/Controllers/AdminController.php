@@ -256,6 +256,12 @@ class AdminController extends Controller
             'role' => ['required', 'string', 'exists:roles,name'],
         ]);
 
+        // Quitarse el rol de Admin a uno mismo deja la cuenta fuera del panel sin forma de revertirlo.
+        if ($user->id === auth()->id() && $request->role !== 'Admin') {
+            return back()->withErrors(['role' => 'No puedes quitarte tu propio rol de administrador.'])
+                ->with('error', 'No puedes quitarte tu propio rol de administrador.');
+        }
+
         $user->update([
             'name' => $request->name,
             'apellido' => $request->apellido,

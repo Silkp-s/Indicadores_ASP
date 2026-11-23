@@ -10,6 +10,7 @@ use App\Services\AlertaEngine;
 use App\Services\ProyeccionEstadisticaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
@@ -27,7 +28,8 @@ class AlertaController extends Controller
         $periodos = $this->periodosDisponibles();
 
         // Período: el pedido, o el más reciente con alertas/mediciones, o el mes en curso.
-        $periodoSeleccionado = (string) $request->input('periodo', $periodos->first()['key'] ?? sprintf('%04d-%02d', now()->year, now()->month));
+        $periodoPorDefecto = $periodos->first()['key'] ?? sprintf('%04d-%02d', now()->year, now()->month);
+        $periodoSeleccionado = is_string($request->input('periodo')) ? $request->input('periodo') : $periodoPorDefecto;
         [$ano, $mes] = array_map('intval', array_pad(explode('-', $periodoSeleccionado), 2, 0));
 
         if ($mes < 1 || $mes > 12 || $ano < 2000) {
@@ -128,7 +130,7 @@ class AlertaController extends Controller
     /**
      * Períodos con mediciones o alertas, del más reciente al más antiguo.
      *
-     * @return \Illuminate\Support\Collection<int, array{key: string, label: string}>
+     * @return Collection<int, array{key: string, label: string}>
      */
     private function periodosDisponibles()
     {

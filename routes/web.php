@@ -84,9 +84,10 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
 
     // Módulo de Importación REM (Metas Sanitarias 2026)
     Route::get('/importacion', [ImportacionController::class, 'index'])->name('importacion');
-    Route::post('/importacion/previsualizar', [ImportacionController::class, 'previsualizar'])->name('importacion.previsualizar');
+    // Leer planillas de hasta 35 MB es costoso: se limita por usuario para que no se pueda saturar el servidor.
+    Route::post('/importacion/previsualizar', [ImportacionController::class, 'previsualizar'])->name('importacion.previsualizar')->middleware('throttle:10,1');
     Route::post('/importacion/guardar', [ImportacionController::class, 'guardar'])->name('importacion.guardar');
-    Route::post('/importacion/procesar', [ImportacionController::class, 'previsualizar'])->name('importacion.procesar');
+    Route::post('/importacion/procesar', [ImportacionController::class, 'previsualizar'])->name('importacion.procesar')->middleware('throttle:10,1');
     Route::post('/importacion/confirmar', [ImportacionController::class, 'guardar'])->name('importacion.confirmar');
 
     Route::get('/compromisos', function () {
@@ -99,7 +100,7 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
 
     // Módulo 6 · Motor y Bandeja de Alertas
     Route::get('/alertas', [AlertaController::class, 'index'])->name('alertas.index');
-    Route::post('/alertas/evaluar', [AlertaController::class, 'evaluar'])->name('alertas.evaluar');
+    Route::post('/alertas/evaluar', [AlertaController::class, 'evaluar'])->name('alertas.evaluar')->middleware('throttle:10,1');
     Route::patch('/alertas/{alerta}', [AlertaController::class, 'update'])->name('alertas.update')->whereNumber('alerta');
 
     // Notificaciones de la campana del top-bar

@@ -46,7 +46,8 @@ class IaapsMetasController extends Controller
             });
 
         // Determinar periodo seleccionado
-        if ($request->filled('periodo') && str_contains($request->input('periodo'), '-')) {
+        // Solo un periodo AAAA-MM: otro valor (o un arreglo) en la URL no debe romper la página.
+        if (is_string($request->input('periodo')) && preg_match('/^\d{4}-(0?[1-9]|1[0-2])$/', $request->input('periodo'))) {
             $partes = explode('-', (string) $request->input('periodo'));
             $selectedAno = (int) $partes[0];
             $selectedMes = (int) $partes[1];
