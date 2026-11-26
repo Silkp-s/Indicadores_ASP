@@ -40,6 +40,10 @@ class DatosPruebaSeeder extends Seeder
 
     public function run(): void
     {
+        if (app()->environment('production')) {
+            throw new \RuntimeException('DatosPruebaSeeder no debe ejecutarse en producción.');
+        }
+
         $this->call([
             RoleSeeder::class,
             EstablecimientosSeeder::class,

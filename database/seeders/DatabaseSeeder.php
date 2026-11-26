@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
@@ -24,40 +25,31 @@ class DatabaseSeeder extends Seeder
             ConfiguracionSeeder::class,
         ]);
 
-        // En producción la clave "password" del repositorio público dejaría la cuenta Admin abierta:
-        // ahí se generan claves aleatorias y se muestran una sola vez en la consola.
-        $produccion = app()->isProduction();
-        $claveAdmin = $produccion ? Str::password(16) : 'password';
-        $claveUsuario = $produccion ? Str::password(16) : 'password';
+        $this->crearUsuarios();
+    }
 
-        // Create Admin user
-        $admin = User::factory()->create([
-            'name' => 'Admin',
-            'apellido' => 'DAS',
-            'email' => 'admin@das.cl',
-            'password' => bcrypt($claveAdmin),
-        ]);
+    /**
+     * Crea (o actualiza) las cuentas de acceso con contraseñas fuertes generadas aleatoriamente.
+     */
+    private function crearUsuarios(): void
+    {
+        $adminPassword = Str::password(16);
+        $usuarioPassword = Str::password(16);
+
+        $admin = User::updateOrCreate(
+            ['email' => 'admin@das.cl'],
+            ['name' => 'Administrador', 'apellido' => 'DAS', 'password' => Hash::make($adminPassword)],
+        );
         $admin->assignRole('Admin');
 
-        // Create regular Usuario
-        $usuario = User::factory()->create([
-            'name' => 'Usuario',
-            'apellido' => 'Prueba',
-            'email' => 'usuario@das.cl',
-            'password' => bcrypt($claveUsuario),
-        ]);
+        $usuario = User::updateOrCreate(
+            ['email' => 'usuario@das.cl'],
+            ['name' => 'Usuario', 'apellido' => 'Operativo', 'password' => Hash::make($usuarioPassword)],
+        );
         $usuario->assignRole('Usuario');
 
-        if ($produccion) {
-            $this->command?->warn("Clave de admin@das.cl: {$claveAdmin}");
-            $this->command?->warn("Clave de usuario@das.cl: {$claveUsuario}");
-
-            return;
-        }
-
-        // Additional test users
-        User::factory(13)->create()->each(function ($user) {
-            $user->assignRole('Usuario');
-        });
+        $this->command?->info('Cuentas de acceso creadas (guarda estas credenciales):');
+        $this->command?->info("  Administrador -> admin@das.cl / {$adminPassword}");
+        $this->command?->info("  Usuario       -> usuario@das.cl / {$usuarioPassword}");
     }
 }
