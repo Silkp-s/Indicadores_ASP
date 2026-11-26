@@ -1,11 +1,13 @@
 <?php
 
+use App\Models\AlertaRegla;
 use App\Models\Establecimiento;
 use App\Models\Indicador;
 use App\Models\IndicadorMedida;
 use App\Models\RemMapping;
 use App\Models\User;
 use App\Services\RemReaderService;
+use Database\Seeders\AlertaReglaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -43,7 +45,35 @@ test('un administrador puede ver el panel con las 4 secciones', function () {
         ->assertSee('Sección 1: Usuarios')
         ->assertSee('Sección 2: Metas Sanitarias e IAAPS')
         ->assertSee('Sección 3: Establecimientos')
-        ->assertSee('Sección 4: Mapeo de Celdas REM');
+        ->assertSee('Sección 4: Mapeo de Celdas REM')
+        ->assertSee('Sección 5: Reglas de Alertas');
+});
+
+test('el administrador puede ver y editar las reglas de alertas', function () {
+    $this->seed(AlertaReglaSeeder::class);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.dashboard', ['tab' => 'reglas']))
+        ->assertOk()
+        ->assertSee('Sección 5: Reglas de Alertas')
+        ->assertSee('REG-01')
+        ->assertSee('REG-10');
+
+    $regla = AlertaRegla::where('codigo', 'REG-10')->first();
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.reglas.update', $regla), [
+            'severidad' => 'Advertencia',
+            'descripcion' => 'Descripción actualizada',
+            'parametros' => ['criticos' => 5],
+        ])
+        ->assertRedirect(route('admin.dashboard', ['tab' => 'reglas']))
+        ->assertSessionHas('status');
+
+    $regla->refresh();
+    expect($regla->severidad)->toBe('Advertencia');
+    expect($regla->parametros)->toHaveKey('criticos');
+    expect((int) $regla->parametros['criticos'])->toBe(5);
 });
 
 test('seccion 1: el admin puede crear, editar y eliminar usuarios', function () {

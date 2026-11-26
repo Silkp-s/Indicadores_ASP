@@ -113,6 +113,28 @@
                 {{ $stats['total_mapeos_rem'] }}
             </span>
         </a>
+
+        {{-- Pestaña 5: Reglas de Alertas --}}
+        <a
+            href="{{ route('admin.dashboard', ['tab' => 'reglas']) }}"
+            @class([
+                'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all',
+                'bg-brand-950 text-white shadow-xs' => $tab === 'reglas',
+                'bg-white text-[#64748B] hover:text-brand-950 hover:bg-[#F1F5F9] border border-[#E2E8F0]' => $tab !== 'reglas',
+            ])
+        >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <span>Sección 5: Reglas de Alertas</span>
+            <span @class([
+                'ml-1 rounded-full px-2 py-0.5 text-xs font-bold',
+                'bg-white/20 text-white' => $tab === 'reglas',
+                'bg-[#F1F5F9] text-brand-950' => $tab !== 'reglas',
+            ])>
+                {{ $stats['total_reglas'] }}
+            </span>
+        </a>
     </div>
 
     {{-- ========================================================================= --}}
@@ -1108,6 +1130,141 @@
         </div>
     @endif
 
+    {{-- ========================================================================= --}}
+    {{-- SECCIÓN 5: REGLAS DE ALERTAS                                            --}}
+    {{-- ========================================================================= --}}
+    @if ($tab === 'reglas')
+        <div class="space-y-6">
+
+            {{-- Banner informativo --}}
+            <div class="rounded-xl border border-accent-500/20 bg-accent-50/40 p-4 flex items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-sm font-bold text-brand-950">Reglas del Motor de Alertas</h3>
+                    <p class="text-xs text-[#64748B] mt-0.5">
+                        Configura la severidad, la descripción y los umbrales de cada regla. Los cambios se aplican en la próxima evaluación del motor.
+                    </p>
+                </div>
+            </div>
+
+            {{-- Búsqueda --}}
+            <div class="flex flex-wrap items-center gap-3 rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
+                <form method="GET" action="{{ route('admin.dashboard') }}" class="flex flex-1 flex-wrap items-center gap-3">
+                    <input type="hidden" name="tab" value="reglas">
+                    <div class="relative w-full flex-1 sm:min-w-[260px]">
+                        <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            name="q_regla"
+                            value="{{ $qRegla }}"
+                            placeholder="Buscar por código o nombre..."
+                            class="w-full rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] py-2 pl-10 pr-3 text-sm text-brand-950 placeholder:text-[#94A3B8] focus:border-accent-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                        >
+                    </div>
+                    <button type="submit" class="rounded-lg bg-brand-950 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-800 transition-colors">Buscar</button>
+                    @if ($qRegla)
+                        <a href="{{ route('admin.dashboard', ['tab' => 'reglas']) }}" class="rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-[#64748B] hover:bg-[#F8FAFC] transition-colors">Limpiar</a>
+                    @endif
+                </form>
+            </div>
+
+            {{-- Tabla de Reglas --}}
+            <div class="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white shadow-xs">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[800px] text-left text-sm">
+                        <thead class="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wider text-[#64748B] border-b border-[#E2E8F0]">
+                            <tr>
+                                <th class="px-5 py-3.5">Código</th>
+                                <th class="px-5 py-3.5">Regla</th>
+                                <th class="px-5 py-3.5">Severidad</th>
+                                <th class="px-5 py-3.5">Umbrales</th>
+                                <th class="px-5 py-3.5 text-center">Estado</th>
+                                <th class="px-5 py-3.5 text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#E2E8F0]" id="reglas-admin-filas">
+                            @forelse ($reglas as $regla)
+                                @php
+                                    $reglaJson = json_encode([
+                                        'id' => $regla->id,
+                                        'codigo' => $regla->codigo,
+                                        'nombre' => $regla->nombre,
+                                        'severidad' => $regla->severidad,
+                                        'descripcion' => $regla->descripcion,
+                                        'parametros' => $regla->parametros ?? [],
+                                        'is_active' => (bool) $regla->is_active,
+                                        'url_actualizar' => route('admin.reglas.update', $regla),
+                                    ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+                                @endphp
+                                <tr class="hover:bg-[#F8FAFC]/80 transition-colors" data-regla="{{ $reglaJson }}">
+                                    <td class="px-5 py-3.5 whitespace-nowrap">
+                                        <span class="bg-[#F1F5F9] px-2 py-0.5 rounded text-xs font-mono font-bold border border-[#CBD5E1] text-brand-950">{{ $regla->codigo }}</span>
+                                    </td>
+                                    <td class="px-5 py-3.5">
+                                        <p class="font-semibold text-brand-950">{{ $regla->nombre }}</p>
+                                        <p class="text-[11px] text-[#64748B] line-clamp-1 mt-0.5">{{ $regla->descripcion }}</p>
+                                    </td>
+                                    <td class="px-5 py-3.5 whitespace-nowrap">
+                                        @php
+                                            $sevStyle = match ($regla->severidad) {
+                                                'Crítica' => 'bg-status-bad-bg text-status-bad-fg',
+                                                'Advertencia' => 'bg-status-warn-bg text-status-warn-fg',
+                                                'Informativa' => 'bg-brand-100 text-accent-600',
+                                                default => 'bg-slate-100 text-slate-700',
+                                            };
+                                        @endphp
+                                        <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $sevStyle }}">{{ $regla->severidad }}</span>
+                                    </td>
+                                    <td class="px-5 py-3.5 text-xs text-[#64748B]">
+                                        @if (! empty($regla->parametros) && isset(\App\Models\AlertaRegla::PARAMETROS[$regla->codigo]))
+                                            <div class="flex flex-wrap gap-1.5">
+                                                @foreach (\App\Models\AlertaRegla::PARAMETROS[$regla->codigo] as $clave => $etiqueta)
+                                                    <span class="inline-flex items-center gap-1 rounded-md bg-[#F1F5F9] px-2 py-0.5 text-[11px] font-medium text-[#475569]">
+                                                        {{ $etiqueta }}: <strong>{{ $regla->parametros[$clave] ?? '—' }}</strong>
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        @else
+                                            <span class="text-[#94A3B8] italic">Sin umbrales</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-5 py-3.5 text-center whitespace-nowrap">
+                                        @if ($regla->is_active)
+                                            <span class="inline-flex rounded-full bg-status-ok-bg px-2.5 py-0.5 text-xs font-semibold text-status-ok-fg">Activa</span>
+                                        @else
+                                            <span class="inline-flex rounded-full bg-[#F1F5F9] px-2.5 py-0.5 text-xs font-semibold text-[#64748B]">Inactiva</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-5 py-3.5 text-right whitespace-nowrap">
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            <button type="button" data-accion="editar-regla" class="rounded-lg p-1.5 text-[#64748B] hover:bg-[#F1F5F9] hover:text-brand-950 transition-colors" title="Editar regla" aria-label="Editar regla">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                            </button>
+                                            <form method="POST" action="{{ route('admin.reglas.estado', $regla) }}" class="inline" data-confirmar="{{ $regla->is_active ? '¿Está seguro que desea desactivar esta regla?' : '¿Está seguro que desea activar esta regla?' }}">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="hidden" name="is_active" value="{{ $regla->is_active ? 0 : 1 }}">
+                                                <button type="submit" @class(['rounded-lg p-1.5 transition-colors', 'text-status-warn-fg hover:bg-status-warn-bg/60' => $regla->is_active, 'text-status-ok-fg hover:bg-status-ok-bg/60' => ! $regla->is_active]) title="{{ $regla->is_active ? 'Desactivar' : 'Activar' }}" aria-label="{{ $regla->is_active ? 'Desactivar regla' : 'Activar regla' }}">
+                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" /></svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-5 py-12 text-center text-sm text-[#64748B]">No se encontraron reglas de alerta.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    @endif
+
 </div>
 
 {{-- Modales de administración --}}
@@ -1115,6 +1272,7 @@
 @include('admin.partials.modal-indicador')
 @include('admin.partials.modal-rem-mapping')
 @include('admin.partials.modal-establecimiento')
+@include('admin.partials.modal-regla')
 
 @endsection
 
@@ -1377,6 +1535,61 @@
             abrirModalEstablecimiento();
         });
 
+        // ==========================================
+        // Modal Regla de Alerta
+        // ==========================================
+        const PARAMETROS_MAP = @json(\App\Models\AlertaRegla::PARAMETROS);
+        const modalRegla = document.getElementById('modal-admin-regla');
+        const formRegla = document.getElementById('form-admin-regla');
+
+        const abrirModalRegla = () => {
+            modalRegla.classList.replace('hidden', 'flex');
+            (formRegla.querySelector('select, input:not([type="hidden"])') ?? formRegla.querySelector('button'))?.focus();
+        };
+
+        const cerrarModalRegla = () => {
+            modalRegla.classList.replace('flex', 'hidden');
+        };
+
+        modalRegla?.addEventListener('click', (e) => {
+            if (e.target === modalRegla || e.target.closest('[data-cerrar-modal-regla]')) {
+                cerrarModalRegla();
+            }
+        });
+
+        document.getElementById('reglas-admin-filas')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-accion="editar-regla"]');
+            if (!btn) return;
+
+            const tr = btn.closest('tr');
+            if (!tr || !tr.dataset.regla) return;
+
+            const datos = JSON.parse(tr.dataset.regla);
+            document.getElementById('form-admin-regla-titulo').textContent = `Editar regla ${datos.codigo}`;
+            formRegla.action = datos.url_actualizar;
+            formRegla.elements._method.disabled = false;
+            formRegla.elements.regla_id.value = datos.id;
+
+            document.getElementById('campo-regla-codigo').value = datos.codigo ?? '';
+            formRegla.elements.severidad.value = datos.severidad ?? 'Advertencia';
+            formRegla.elements.descripcion.value = datos.descripcion ?? '';
+
+            // Mostrar solo los umbrales de esta regla y rellenar sus valores.
+            const claves = PARAMETROS_MAP[datos.codigo] ? Object.keys(PARAMETROS_MAP[datos.codigo]) : [];
+            formRegla.querySelectorAll('[data-param-container]').forEach((container) => {
+                const clave = container.dataset.paramContainer;
+                const visible = claves.includes(clave);
+                container.classList.toggle('hidden', !visible);
+
+                const input = container.querySelector('input');
+                if (input) {
+                    input.value = visible ? (datos.parametros?.[clave] ?? '') : '';
+                }
+            });
+
+            abrirModalRegla();
+        });
+
         // Cierre con Escape para cualquier modal
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -1384,6 +1597,7 @@
                 if (modalIndicador?.classList.contains('flex')) cerrarModalIndicador();
                 if (modalRem?.classList.contains('flex')) cerrarModalRem();
                 if (modalEstablecimiento?.classList.contains('flex')) cerrarModalEstablecimiento();
+                if (modalRegla?.classList.contains('flex')) cerrarModalRegla();
             }
         });
     })();

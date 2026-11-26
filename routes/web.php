@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AlertaController;
 use App\Http\Controllers\CentroMandoController;
+use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\DeisController;
 use App\Http\Controllers\EstablecimientoController;
 use App\Http\Controllers\IaapsMetasController;
@@ -110,9 +111,11 @@ Route::middleware(['auth', 'role:Admin|Usuario'])->group(function () {
     Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
     Route::get('/reportes/exportar', [ReporteController::class, 'exportar'])->name('reportes.exportar');
 
-    Route::get('/configuracion', function () {
-        return view('en-construccion', ['titulo' => 'Configuración']); // TODO: vista de Configuración
-    })->name('configuracion');
+    // Configuración: perfil y contraseña (todos) + parámetros del sistema (admin)
+    Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion');
+    Route::put('/configuracion/perfil', [ConfiguracionController::class, 'updatePerfil'])->name('configuracion.perfil');
+    Route::put('/configuracion/password', [ConfiguracionController::class, 'updatePassword'])->name('configuracion.password');
+    Route::put('/configuracion/sistema', [ConfiguracionController::class, 'updateSistema'])->name('configuracion.sistema')->middleware('role:Admin');
 });
 
 /*
@@ -145,6 +148,10 @@ Route::middleware(['auth', 'admin_only'])->prefix('admin')->name('admin.')->grou
     Route::put('/establecimientos/{establecimiento}', [AdminController::class, 'updateEstablecimiento'])->name('establecimientos.update')->whereNumber('establecimiento');
     Route::delete('/establecimientos/{establecimiento}', [AdminController::class, 'destroyEstablecimiento'])->name('establecimientos.destroy')->whereNumber('establecimiento');
     Route::patch('/establecimientos/{establecimiento}/estado', [AdminController::class, 'cambiarEstadoEstablecimiento'])->name('establecimientos.estado')->whereNumber('establecimiento');
+
+    // Sección 5 · Reglas de Alertas
+    Route::put('/reglas/{regla}', [AdminController::class, 'updateRegla'])->name('reglas.update')->whereNumber('regla');
+    Route::patch('/reglas/{regla}/estado', [AdminController::class, 'cambiarEstadoRegla'])->name('reglas.estado')->whereNumber('regla');
 });
 
 /*

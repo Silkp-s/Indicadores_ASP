@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             EstablecimientosSeeder::class,
             IndicadorSeeder::class,
             AlertaReglaSeeder::class,
+            ConfiguracionSeeder::class,
         ]);
 
         // En producción la clave "password" del repositorio público dejaría la cuenta Admin abierta:

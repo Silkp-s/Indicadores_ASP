@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Configuracion;
 use App\Models\Establecimiento;
 use App\Models\IndicadorMedida;
 use App\Services\ProyeccionEstadisticaService;
@@ -206,7 +207,7 @@ class CentroMandoController extends Controller
             $mes = $periodosDisponibles->first()['mes'];
             $periodoSeleccionado = $periodosDisponibles->first()['key'];
         } else {
-            $año = (int) date('Y');
+            $año = Configuracion::anoTrabajo();
             $mes = (int) date('n');
             $periodoSeleccionado = sprintf('%04d-%02d', $año, $mes);
         }

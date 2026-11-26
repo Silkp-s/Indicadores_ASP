@@ -410,3 +410,27 @@ test('la paginación muestra la página actual como un campo editable', function
         ->assertSee('name="page"', false)
         ->assertSee('value="1"', false);
 });
+
+test('los umbrales de una regla son configurables mediante sus parámetros', function () {
+    // REG-10 dispara con 2 críticos si su parámetro `criticos` es 2 (por defecto es 3).
+    AlertaRegla::where('codigo', 'REG-10')->update(['parametros' => ['criticos' => 2]]);
+
+    $est = nuevoCesfam();
+    medir(nuevoIndicador(['codigo' => 'MS-21']), $est, 3, 40, 'Crítico');
+    medir(nuevoIndicador(['codigo' => 'MS-22']), $est, 3, 40, 'Crítico');
+
+    evaluar();
+
+    expect(alertasDe('REG-10'))->toHaveCount(1);
+});
+
+test('al detectar alertas nuevas se notifica a los administradores', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('Admin');
+
+    medir(nuevoIndicador(['codigo' => 'MS-31']), nuevoCesfam(), 3, 45, 'Crítico');
+
+    evaluar();
+
+    expect($admin->notificaciones()->count())->toBeGreaterThan(0);
+});

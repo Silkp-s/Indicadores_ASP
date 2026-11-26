@@ -16,7 +16,7 @@
         'Revisada' => 'bg-status-warn-bg text-status-warn-fg',
         'Resuelta' => 'bg-status-ok-bg text-status-ok-fg',
     ];
-    $hayFiltros = $filtros['severidad'] !== 'todas' || $filtros['estado'] !== 'abiertas' || $filtros['establecimiento_id'];
+    $hayFiltros = $filtros['severidad'] !== 'todas' || $filtros['estado'] !== 'abiertas' || $filtros['establecimiento_id'] || $filtros['q'] !== '';
 @endphp
 <div class="space-y-6">
 
@@ -37,7 +37,7 @@
     @endif
 
     {{-- Tarjetas resumen: alertas abiertas (Pendiente + Revisada) del período --}}
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         @foreach ($severidades as $severidad)
             <div class="rounded-xl border border-[#E2E8F0] border-l-4 {{ $estilosSeveridad[$severidad]['borde'] }} bg-white p-4 shadow-xs">
                 <p class="text-xs font-semibold uppercase tracking-wider text-[#64748B]">{{ $severidad }}s abiertas</p>
@@ -48,12 +48,28 @@
             <p class="text-xs font-semibold uppercase tracking-wider text-[#64748B]">Resueltas</p>
             <p class="mt-1 text-3xl font-bold text-status-ok-fg" data-resumen="Resueltas">{{ $resueltas }}</p>
         </div>
+        <div class="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
+            <p class="text-xs font-semibold uppercase tracking-wider text-[#64748B]">Total del período</p>
+            <p class="mt-1 text-3xl font-bold text-brand-950" data-resumen="Total">{{ $totalPeriodo }}</p>
+        </div>
     </div>
 
     {{-- Filtros y ejecución del motor --}}
     <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
 
         <form method="GET" action="{{ route('alertas.index') }}" class="flex flex-1 flex-wrap items-center gap-3">
+            <div class="relative w-full flex-1 sm:min-w-[220px]">
+                <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                    type="text"
+                    name="q"
+                    value="{{ $filtros['q'] }}"
+                    placeholder="Buscar por indicador, regla o establecimiento..."
+                    class="w-full rounded-lg border border-[#CBD5E1] bg-white py-2 pl-10 pr-3 text-sm text-brand-950 placeholder:text-[#94A3B8] focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                >
+            </div>
             <select name="periodo" onchange="this.form.submit()" title="Período evaluado"
                 class="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm font-medium text-brand-950 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20 sm:w-auto">
                 @forelse ($periodos as $p)
@@ -94,18 +110,6 @@
             @endif
         </form>
 
-        <form method="POST" action="{{ route('alertas.evaluar') }}" class="flex items-center gap-2">
-            @csrf
-            <input type="hidden" name="periodo" value="{{ $filtros['periodo'] }}">
-            <button type="submit"
-                class="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-600"
-                title="Aplica las {{ $reglasActivas }} reglas activas a las mediciones de {{ $periodoLabel }}">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
-                Evaluar {{ $periodoLabel }}
-            </button>
-        </form>
     </div>
 
     {{-- Bandeja --}}
@@ -139,6 +143,11 @@
                                 @if ($alerta->observacion_gestion)
                                     <p class="mt-1.5 rounded-md bg-[#F1F5F9] p-2 text-[#334155]"><span class="font-semibold">Gestión:</span> {{ $alerta->observacion_gestion }}</p>
                                 @endif
+                                @if ($alerta->usuario)
+                                    <p class="mt-1 text-[11px] text-[#94A3B8]">
+                                        Gestionada por {{ $alerta->usuario->name }} {{ $alerta->usuario->apellido }}@if ($alerta->resuelta_en) · {{ $alerta->resuelta_en->format('d/m/Y H:i') }}@endif
+                                    </p>
+                                @endif
                             </td>
                             <td class="px-5 py-4 text-right font-semibold tabular-nums text-brand-950">
                                 {{ $alerta->brecha_detectada !== null ? number_format((float) $alerta->brecha_detectada, 1, ',', '.') : '—' }}
@@ -162,7 +171,7 @@
                             <td colspan="7" class="px-6 py-14 text-center">
                                 <p class="text-base font-semibold text-brand-950">No hay alertas para los filtros seleccionados</p>
                                 <p class="mt-1 text-sm text-[#64748B]">
-                                    El motor se ejecuta automáticamente tras cada importación REM. Puede forzar la evaluación con el botón «Evaluar {{ $periodoLabel }}».
+                                    El motor se ejecuta automáticamente tras cada importación REM y a diario. Aún no hay alertas para los filtros seleccionados.
                                 </p>
                             </td>
                         </tr>

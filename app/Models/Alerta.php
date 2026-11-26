@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'brecha_detectada',
     'estado',
     'observacion_gestion',
+    'user_id',
+    'resuelta_en',
 ])]
 class Alerta extends Model
 {
@@ -35,6 +37,7 @@ class Alerta extends Model
             'ano' => 'integer',
             'mes' => 'integer',
             'brecha_detectada' => 'decimal:2',
+            'resuelta_en' => 'datetime',
         ];
     }
 
@@ -51,6 +54,14 @@ class Alerta extends Model
     public function establecimiento(): BelongsTo
     {
         return $this->belongsTo(Establecimiento::class, 'establecimientos_id');
+    }
+
+    /**
+     * Usuario que gestionó la alerta (nulo si aún nadie la ha gestionado).
+     */
+    public function usuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**

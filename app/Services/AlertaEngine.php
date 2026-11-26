@@ -7,6 +7,8 @@ use App\Models\AlertaRegla;
 use App\Models\Establecimiento;
 use App\Models\Indicador;
 use App\Models\IndicadorMedida;
+use App\Models\Notificacion;
+use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -72,6 +74,9 @@ class AlertaEngine
 
     private int $mes;
 
+    /** @var array<string, mixed> Parámetros de la regla en evaluación. */
+    private array $parametros = [];
+
     public function __construct(private readonly ProyeccionEstadisticaService $proyeccion) {}
 
     /**
@@ -84,15 +89,18 @@ class AlertaEngine
         $this->cargarDatos($ano, $mes);
 
         $detectadas = 0;
+        $nuevas = 0;
         $retiradas = 0;
 
-        DB::transaction(function () use (&$detectadas, &$retiradas, $ano, $mes): void {
+        DB::transaction(function () use (&$detectadas, &$nuevas, &$retiradas, $ano, $mes): void {
             foreach (AlertaRegla::activas()->orderBy('codigo')->get() as $regla) {
                 $metodo = self::EVALUADORES[$regla->codigo] ?? null;
 
                 if ($metodo === null) {
                     continue; // Regla creada a mano en BD sin evaluador implementado
                 }
+
+                $this->parametros = $regla->parametros ?? [];
 
                 $idsVigentes = [];
 
@@ -112,6 +120,10 @@ class AlertaEngine
                         ],
                     );
 
+                    if ($alerta->wasRecentlyCreated) {
+                        $nuevas++;
+                    }
+
                     $idsVigentes[] = $alerta->id;
                     $detectadas++;
                 }
@@ -126,7 +138,9 @@ class AlertaEngine
             }
         });
 
-        return ['detectadas' => $detectadas, 'retiradas' => $retiradas];
+        $this->notificarNuevasAlertas($ano, $mes, $nuevas);
+
+        return ['detectadas' => $detectadas, 'retiradas' => $retiradas, 'nuevas' => $nuevas];
     }
 
     /**
@@ -195,6 +209,37 @@ class AlertaEngine
     }
 
     /**
+     * Lee un parámetro configurable de la regla en evaluación, con su valor por defecto.
+     */
+    private function param(string $clave, float|int $defecto): float|int
+    {
+        $valor = $this->parametros[$clave] ?? $defecto;
+
+        return is_int($defecto) ? (int) $valor : (float) $valor;
+    }
+
+    /**
+     * Notifica a los administradores cuando se detectan alertas nuevas en un período.
+     */
+    private function notificarNuevasAlertas(int $ano, int $mes, int $nuevas): void
+    {
+        if ($nuevas === 0) {
+            return;
+        }
+
+        $periodo = (ProyeccionEstadisticaService::MESES_NOMBRES[$mes] ?? "Mes {$mes}")." {$ano}";
+        $mensaje = "Se detectaron {$nuevas} alerta(s) nueva(s) de riesgo en {$periodo}.";
+
+        foreach (User::role('Admin')->get() as $admin) {
+            Notificacion::create([
+                'user_id' => $admin->id,
+                'tipo' => 'warning',
+                'mensaje' => $mensaje,
+            ]);
+        }
+    }
+
+    /**
      * @return array{indicador_id: int, establecimiento_id: int, mensaje: string, brecha: float}
      */
     private function hallazgoDeMedida(IndicadorMedida $medida, string $detalle, ?float $brecha = null): array
@@ -254,37 +299,63 @@ class AlertaEngine
         }
     }
 
-    /** REG-02 · En Riesgo con avance entre 85 % y 95 % de la meta. */
+    /** REG-02 · En Riesgo con avance bajo el umbral de cercanía (por defecto 95 % de la meta). */
     private function reg02MetaEnRiesgo(): iterable
     {
+        $umbral = (float) $this->param('umbral_cercano', self::UMBRAL_CERCANO);
+
         foreach ($this->medidasConEstado('En Riesgo') as $m) {
             $logro = $this->logroDe($m);
 
-            if ($logro < self::UMBRAL_CERCANO) {
+            if ($logro < $umbral) {
                 yield $this->hallazgoDeMedida($m, "en riesgo, avance de {$this->pct($logro)} de la meta.");
             }
         }
     }
 
-    /** REG-03 · Avance estrictamente decreciente 3 meses seguidos y aún sin cumplir. */
+    /** REG-03 · Avance estrictamente decreciente N meses seguidos y aún sin cumplir. */
     private function reg03TendenciaDescendente(): iterable
     {
-        if ($this->mes < 3) {
+        $meses = (int) $this->param('meses', 3);
+
+        if ($this->mes < $meses) {
             return;
         }
 
         foreach ($this->medidas as $clave => $m) {
-            $s = $this->serie[$clave] ?? [];
-
-            if (! isset($s[$this->mes - 2], $s[$this->mes - 1], $s[$this->mes])) {
+            if ($m->status === 'Cumpliendo') {
                 continue;
             }
 
-            if ($m->status !== 'Cumpliendo' && $s[$this->mes - 2] > $s[$this->mes - 1] && $s[$this->mes - 1] > $s[$this->mes]) {
-                yield $this->hallazgoDeMedida(
-                    $m,
-                    "tres meses a la baja ({$this->pct($s[$this->mes - 2])} → {$this->pct($s[$this->mes - 1])} → {$this->pct($s[$this->mes])} de la meta).",
-                );
+            $s = $this->serie[$clave] ?? [];
+
+            $valores = [];
+            $completo = true;
+            for ($i = $meses - 1; $i >= 0; $i--) {
+                $mes = $this->mes - $i;
+                if (! isset($s[$mes])) {
+                    $completo = false;
+                    break;
+                }
+                $valores[] = $s[$mes];
+            }
+
+            if (! $completo) {
+                continue;
+            }
+
+            $decreciente = true;
+            for ($i = 1; $i < count($valores); $i++) {
+                if ($valores[$i - 1] <= $valores[$i]) {
+                    $decreciente = false;
+                    break;
+                }
+            }
+
+            if ($decreciente) {
+                $cadena = implode(' → ', array_map(fn ($v) => $this->pct($v), $valores));
+
+                yield $this->hallazgoDeMedida($m, "{$meses} meses a la baja ({$cadena} de la meta).");
             }
         }
     }
@@ -328,10 +399,12 @@ class AlertaEngine
     /** REG-05 · Proyección a diciembre en estado Crítico (usa ProyeccionEstadisticaService, con la serie normalizada a % de la meta). */
     private function reg05ProyeccionEnRiesgo(): iterable
     {
+        $minPuntos = (int) $this->param('min_puntos', self::MIN_PUNTOS_PROYECCION);
+
         foreach ($this->medidas as $clave => $m) {
             $s = $this->serie[$clave] ?? [];
 
-            if (count($s) < self::MIN_PUNTOS_PROYECCION) {
+            if (count($s) < $minPuntos) {
                 continue;
             }
 
@@ -361,6 +434,8 @@ class AlertaEngine
             return;
         }
 
+        $caidaMinima = (float) $this->param('caida', self::CAIDA_ABRUPTA);
+
         foreach ($this->medidas as $clave => $m) {
             $s = $this->serie[$clave] ?? [];
 
@@ -370,7 +445,7 @@ class AlertaEngine
 
             $caida = $s[$this->mes - 1] - $s[$this->mes];
 
-            if ($caida >= self::CAIDA_ABRUPTA) {
+            if ($caida >= $caidaMinima) {
                 yield $this->hallazgoDeMedida(
                     $m,
                     "cayó {$this->pct($caida)} frente al mes anterior ({$this->pct($s[$this->mes - 1])} → {$this->pct($s[$this->mes])} de la meta).",
@@ -383,10 +458,12 @@ class AlertaEngine
     /** REG-07 · En Riesgo pero a menos de 5 % de la meta. */
     private function reg07CercanoAMeta(): iterable
     {
+        $umbral = (float) $this->param('umbral_cercano', self::UMBRAL_CERCANO);
+
         foreach ($this->medidasConEstado('En Riesgo') as $m) {
             $logro = $this->logroDe($m);
 
-            if ($logro >= self::UMBRAL_CERCANO) {
+            if ($logro >= $umbral) {
                 yield $this->hallazgoDeMedida($m, "avance de {$this->pct($logro)} de la meta: cerca de cumplir, requiere un refuerzo puntual.");
             }
         }
@@ -432,6 +509,8 @@ class AlertaEngine
     /** REG-10 · Establecimiento con 3 o más indicadores Críticos (con datos válidos) en el período. */
     private function reg10AcumulacionCriticos(): iterable
     {
+        $criticosMinimos = (int) $this->param('criticos', self::CRITICOS_POR_ESTABLECIMIENTO);
+
         $criticos = $this->medidasConEstado('Crítico');
         $porEstablecimiento = [];
 
@@ -442,7 +521,7 @@ class AlertaEngine
         }
 
         foreach ($porEstablecimiento as $establecimientoId => $codigos) {
-            if (count($codigos) >= self::CRITICOS_POR_ESTABLECIMIENTO) {
+            if (count($codigos) >= $criticosMinimos) {
                 sort($codigos);
 
                 yield [

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\IaapsMetaRequest;
+use App\Models\Configuracion;
 use App\Models\Establecimiento;
 use App\Models\Indicador;
 use App\Models\IndicadorMedida;
@@ -57,7 +58,7 @@ class IaapsMetasController extends Controller
             $selectedMes = $periodosDisponibles->first()['mes'];
             $periodoSeleccionado = $periodosDisponibles->first()['key'];
         } else {
-            $selectedAno = (int) date('Y');
+            $selectedAno = Configuracion::anoTrabajo();
             $selectedMes = (int) date('n');
             $periodoSeleccionado = sprintf('%04d-%02d', $selectedAno, $selectedMes);
         }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Configuracion;
 use App\Models\Establecimiento;
 use App\Models\Indicador;
 use App\Models\RemMapping;
@@ -1742,8 +1743,12 @@ class RemReaderService
      *
      * @return array{porcentaje: float, estado: 'Cumpliendo'|'En Riesgo'|'Crítico'}
      */
-    public function calculateCompliance(float $numerador, float $denominador, float $objetivo, string $tipoCalculo = 'Porcentaje'): array
+    public function calculateCompliance(float $numerador, float $denominador, float $objetivo, string $tipoCalculo = 'Porcentaje', ?float $umbralCritico = null): array
     {
+        // Umbral crítico configurable (% de la meta). Por defecto 85 %.
+        $umbralCritico ??= Configuracion::umbralCritico();
+        $umbralCritico = max(0.0, min(100.0, $umbralCritico));
+
         if ($denominador <= 0.0) {
             return [
                 'porcentaje' => 0.0,
@@ -1758,7 +1763,7 @@ class RemReaderService
 
             if ($porcentaje >= 100.0) {
                 return ['porcentaje' => $porcentaje, 'estado' => 'Cumpliendo'];
-            } elseif ($porcentaje >= 85.0) {
+            } elseif ($porcentaje >= $umbralCritico) {
                 return ['porcentaje' => $porcentaje, 'estado' => 'En Riesgo'];
             } else {
                 return ['porcentaje' => $porcentaje, 'estado' => 'Crítico'];
@@ -1767,9 +1772,11 @@ class RemReaderService
             // Umbral máximo tolerable (ej: % derivación nivel secundario <= 10%)
             $tasa = round(($numerador / $denominador) * 100, 2);
             $porcentaje = $tasa;
+            $tolerancia = 1 + ((100 - $umbralCritico) / 100);
+
             if ($tasa <= $objetivo) {
                 return ['porcentaje' => $porcentaje, 'estado' => 'Cumpliendo'];
-            } elseif ($tasa <= ($objetivo * 1.15)) {
+            } elseif ($tasa <= ($objetivo * $tolerancia)) {
                 return ['porcentaje' => $porcentaje, 'estado' => 'En Riesgo'];
             } else {
                 return ['porcentaje' => $porcentaje, 'estado' => 'Crítico'];
@@ -1778,7 +1785,7 @@ class RemReaderService
             $porcentaje = round(($numerador / $denominador) * 100, 2);
         }
 
-        $umbralRiesgo = $objetivo * 0.85;
+        $umbralRiesgo = $objetivo * ($umbralCritico / 100);
 
         if ($porcentaje >= $objetivo) {
             $estado = 'Cumpliendo';

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Alerta;
 use App\Models\AlertaRegla;
+use App\Models\Configuracion;
 use App\Models\Establecimiento;
 use App\Models\IndicadorMedida;
 use App\Services\AlertaEngine;
@@ -28,12 +29,12 @@ class AlertaController extends Controller
         $periodos = $this->periodosDisponibles();
 
         // Período: el pedido, o el más reciente con alertas/mediciones, o el mes en curso.
-        $periodoPorDefecto = $periodos->first()['key'] ?? sprintf('%04d-%02d', now()->year, now()->month);
+        $periodoPorDefecto = $periodos->first()['key'] ?? sprintf('%04d-%02d', Configuracion::anoTrabajo(), now()->month);
         $periodoSeleccionado = is_string($request->input('periodo')) ? $request->input('periodo') : $periodoPorDefecto;
         [$ano, $mes] = array_map('intval', array_pad(explode('-', $periodoSeleccionado), 2, 0));
 
         if ($mes < 1 || $mes > 12 || $ano < 2000) {
-            $ano = (int) now()->year;
+            $ano = Configuracion::anoTrabajo();
             $mes = (int) now()->month;
             $periodoSeleccionado = sprintf('%04d-%02d', $ano, $mes);
         }
@@ -43,6 +44,7 @@ class AlertaController extends Controller
             'severidad' => in_array($request->input('severidad'), AlertaRegla::SEVERIDADES, true) ? $request->input('severidad') : 'todas',
             'estado' => in_array($request->input('estado'), [...Alerta::ESTADOS, 'todas', 'abiertas'], true) ? $request->input('estado') : 'abiertas',
             'establecimiento_id' => $request->filled('establecimiento_id') ? $request->integer('establecimiento_id') : null,
+            'q' => trim((string) $request->input('q', '')),
         ];
 
         $base = Alerta::query()
@@ -60,15 +62,25 @@ class AlertaController extends Controller
 
         $resueltas = (clone $base)->where('alertas.estado', 'Resuelta')->count();
 
+        $totalPeriodo = (clone $base)->count();
+
         $alertas = Alerta::query()
             ->porSeveridad()
-            ->with(['regla', 'establecimiento', 'indicador'])
+            ->with(['regla', 'establecimiento', 'indicador', 'usuario'])
             ->where('alertas.ano', $ano)
             ->where('alertas.mes', $mes)
             ->when($filtros['establecimiento_id'], fn ($q, $id) => $q->where('alertas.establecimientos_id', $id))
             ->when($filtros['severidad'] !== 'todas', fn ($q) => $q->where('alerta_reglas.severidad', $filtros['severidad']))
             ->when($filtros['estado'] === 'abiertas', fn ($q) => $q->whereIn('alertas.estado', ['Pendiente', 'Revisada']))
             ->when(in_array($filtros['estado'], Alerta::ESTADOS, true), fn ($q) => $q->where('alertas.estado', $filtros['estado']))
+            ->when($filtros['q'] !== '', function ($query) use ($filtros) {
+                $texto = $filtros['q'];
+                $query->where(function ($sub) use ($texto) {
+                    $sub->whereHas('indicador', fn ($i) => $i->where('codigo', 'like', "%{$texto}%")->orWhere('nombre', 'like', "%{$texto}%"))
+                        ->orWhereHas('regla', fn ($r) => $r->where('codigo', 'like', "%{$texto}%")->orWhere('nombre', 'like', "%{$texto}%"))
+                        ->orWhereHas('establecimiento', fn ($e) => $e->where('nombre', 'like', "%{$texto}%"));
+                });
+            })
             ->paginate(self::POR_PAGINA)
             ->withQueryString();
 
@@ -81,6 +93,7 @@ class AlertaController extends Controller
             'estados' => Alerta::ESTADOS,
             'abiertasPorSeveridad' => $abiertasPorSeveridad,
             'resueltas' => $resueltas,
+            'totalPeriodo' => $totalPeriodo,
             'reglasActivas' => AlertaRegla::activas()->count(),
             'periodoLabel' => (ProyeccionEstadisticaService::MESES_NOMBRES[$mes] ?? "Mes {$mes}")." {$ano}",
         ]);
@@ -101,7 +114,10 @@ class AlertaController extends Controller
             'observacion_gestion.max' => 'La observación no puede superar los 2000 caracteres.',
         ]);
 
-        $alerta->update($datos);
+        $alerta->update($datos + [
+            'user_id' => $request->user()->id,
+            'resuelta_en' => $datos['estado'] === 'Resuelta' ? now() : null,
+        ]);
 
         return back()->with('status', 'Alerta actualizada: '.$alerta->estado.'.');
     }

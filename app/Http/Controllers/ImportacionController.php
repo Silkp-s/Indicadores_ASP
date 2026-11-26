@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Configuracion;
 use App\Models\Establecimiento;
 use App\Models\Indicador;
 use App\Models\IndicadorMedida;
@@ -556,6 +557,7 @@ class ImportacionController extends Controller
     protected function calculateAndSaveIndicadores(Establecimiento $establecimiento, int $año, int $mes, array $extracted, array $userInputs): array
     {
         $pobTotal = $establecimiento->poblacion_inscrita ?? 0;
+        $umbralCritico = Configuracion::umbralCritico();
 
         // Catálogo de Indicadores activos (Metas Sanitarias e IAAPS)
         $indicadores = Indicador::whereIn('tipo', ['Meta Sanitaria', 'IAAPS'])
@@ -772,7 +774,8 @@ class ImportacionController extends Controller
                 $numerador,
                 $denominador,
                 (float) $indicador->target_value,
-                $tipoCalculo
+                $tipoCalculo,
+                $umbralCritico
             );
 
             $medida = IndicadorMedida::updateOrCreate(

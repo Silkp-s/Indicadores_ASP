@@ -21,9 +21,7 @@
             ['route' => 'importacion', 'activo' => 'importacion*', 'label' => 'Importación REM', 'icono' => [
                 'M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5',
             ]],
-            ['route' => 'compromisos.index', 'activo' => 'compromisos.*', 'label' => 'Compromisos', 'icono' => [
-                'M9 12.75L11.25 15 15 9.75M4.5 6.75A2.25 2.25 0 016.75 4.5h10.5a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 17.25V6.75z',
-            ]],
+
             ['route' => 'inteligencia-deis.index', 'activo' => 'inteligencia-deis.*', 'label' => 'Inteligencia DEIS', 'icono' => [
                 'M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18',
             ]],
@@ -107,26 +105,4 @@
             @endif
         @endforeach
     </nav>
-
-    {{-- Usuario / cerrar sesión --}}
-    <div class="mx-6 h-px bg-[#1E293B]"></div>
-    <div class="px-4 py-4">
-        <div class="flex items-center gap-3 rounded-md px-2 py-2">
-            <div class="flex h-9 w-9 items-center justify-center rounded-full bg-accent-500 text-xs font-semibold text-white">
-                {{ Str::of(auth()->user()->name ?? 'U')->substr(0, 1)->upper() }}
-            </div>
-            <div class="min-w-0 flex-1 leading-tight">
-                <p class="truncate text-sm font-medium text-white">{{ auth()->user()->name ?? 'Usuario' }}</p>
-                <p class="truncate text-xs text-[#94A3B8]">{{ auth()->user()->email ?? '' }}</p>
-            </div>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" class="text-[#94A3B8] hover:text-status-bad-fg" title="Cerrar sesión" aria-label="Cerrar sesión">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0110.5 3h6a2.25 2.25 0 012.25 2.25v13.5A2.25 2.25 0 0116.5 21h-6a2.25 2.25 0 01-2.25-2.25V15m-3 0l-3-3m0 0l3-3m-3 3H15" />
-                    </svg>
-                </button>
-            </form>
-        </div>
-    </div>
 </aside>

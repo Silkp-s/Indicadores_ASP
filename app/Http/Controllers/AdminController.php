@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\AlertaReglaRequest;
 use App\Http\Requests\EstablecimientoRequest;
 use App\Http\Requests\IaapsMetaRequest;
 use App\Http\Requests\RemMappingRequest;
+use App\Models\AlertaRegla;
 use App\Models\Establecimiento;
 use App\Models\Indicador;
 use App\Models\RemMapping;
@@ -182,6 +184,16 @@ class AdminController extends Controller
             ->paginate(12, ['*'], 'page_establecimientos')
             ->withQueryString();
 
+        // 5. Sección Reglas de Alertas
+        $qRegla = trim((string) $request->input('q_regla', ''));
+        $reglas = AlertaRegla::query()
+            ->when($qRegla !== '', function ($q) use ($qRegla) {
+                $q->where('codigo', 'like', "%{$qRegla}%")
+                    ->orWhere('nombre', 'like', "%{$qRegla}%");
+            })
+            ->orderBy('codigo')
+            ->get();
+
         // Indicadores disponibles para vincular en mapeo REM
         $indicadoresDisponibles = Indicador::whereIn('tipo', ['Meta Sanitaria', 'IAAPS'])
             ->orderBy('tipo')
@@ -196,6 +208,8 @@ class AdminController extends Controller
             'total_mapeos_rem' => $totalMapeosRem,
             'mapeos_activos' => $mapeosActivosRem,
             'total_establecimientos' => Establecimiento::count(),
+            'total_reglas' => AlertaRegla::count(),
+            'reglas_activas' => AlertaRegla::where('is_active', true)->count(),
         ];
 
         return view('admin.dashboard', [
@@ -214,6 +228,8 @@ class AdminController extends Controller
             'tipoEst' => $tipoEst,
             'estadoEst' => $estadoEst,
             'tiposEstablecimiento' => Establecimiento::TIPOS,
+            'reglas' => $reglas,
+            'qRegla' => $qRegla,
             'stats' => $stats,
         ]);
     }
@@ -428,5 +444,30 @@ class AdminController extends Controller
 
         return redirect()->route('admin.dashboard', ['tab' => 'establecimientos'])
             ->with('status', "Establecimiento “{$establecimiento->nombre}” {$accion} exitosamente.");
+    }
+
+    // ==========================================
+    // SECCIÓN 5: REGLAS DE ALERTAS
+    // ==========================================
+
+    public function updateRegla(AlertaReglaRequest $request, AlertaRegla $regla): RedirectResponse
+    {
+        $regla->update($request->validated());
+
+        return redirect()->route('admin.dashboard', ['tab' => 'reglas'])
+            ->with('status', "Regla {$regla->codigo} actualizada correctamente.");
+    }
+
+    public function cambiarEstadoRegla(Request $request, AlertaRegla $regla): RedirectResponse
+    {
+        $datos = $request->validate([
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $regla->update(['is_active' => (bool) $datos['is_active']]);
+        $accion = $regla->is_active ? 'activada' : 'desactivada';
+
+        return redirect()->route('admin.dashboard', ['tab' => 'reglas'])
+            ->with('status', "Regla {$regla->codigo} {$accion} correctamente.");
     }
 }

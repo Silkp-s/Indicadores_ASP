@@ -45,12 +45,6 @@
 
                 <div class="ml-auto flex items-center gap-2 sm:gap-4 lg:gap-5 shrink-0">
 
-                    <button type="button" class="hidden sm:inline-flex text-[#64748B] hover:text-brand-950" title="Mensajes" aria-label="Mensajes">
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-                        </svg>
-                    </button>
-
                     @php
                         $usuarioNotificaciones = auth()->user();
                         $ultimasNotificaciones = $usuarioNotificaciones
@@ -124,14 +118,69 @@
                         </div>
                     </div>
 
-                    <button type="button" class="flex items-center gap-2 text-[#64748B] hover:text-brand-950" title="Mi perfil" aria-label="Mi perfil">
-                        <span class="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-accent-500 text-xs sm:text-sm font-semibold text-white">
-                            {{ Str::of(auth()->user()->name ?? 'U')->substr(0, 1)->upper() }}
-                        </span>
-                        <svg class="hidden sm:block h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                        </svg>
-                    </button>
+                    {{-- Menú de perfil (dropdown) --}}
+                    <div class="relative">
+                        <button
+                            type="button"
+                            id="perfil-btn"
+                            class="flex items-center gap-2 text-[#64748B] hover:text-brand-950"
+                            title="Mi perfil"
+                            aria-label="Mi perfil"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            aria-controls="perfil-panel"
+                        >
+                            <span class="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-accent-500 text-xs sm:text-sm font-semibold text-white">
+                                {{ Str::of(auth()->user()->name ?? 'U')->substr(0, 1)->upper() }}
+                            </span>
+                            <svg class="hidden sm:block h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+
+                        <div
+                            id="perfil-panel"
+                            class="absolute right-0 top-full z-50 mt-2 hidden w-72 overflow-hidden rounded-xl border border-[#E2E8F0] bg-white shadow-xl"
+                        >
+                            {{-- Cabecera con datos del usuario --}}
+                            <div class="border-b border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
+                                <p class="truncate text-sm font-semibold text-brand-950">{{ auth()->user()->name }} {{ auth()->user()->apellido }}</p>
+                                <p class="truncate text-xs text-[#64748B]">{{ auth()->user()->email }}</p>
+                                <span @class([
+                                    'mt-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold',
+                                    'bg-brand-100 text-brand-950' => auth()->user()->hasRole('Admin'),
+                                    'bg-emerald-50 text-emerald-800 border border-emerald-200' => ! auth()->user()->hasRole('Admin'),
+                                ])>
+                                    {{ auth()->user()->hasRole('Admin') ? 'Administrador' : 'Usuario' }}
+                                </span>
+                            </div>
+
+                            <div class="p-1.5">
+                                {{-- Configuración --}}
+                                <a
+                                    href="{{ route('configuracion') }}"
+                                    class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-brand-950 transition-colors hover:bg-[#F1F5F9]"
+                                >
+                                    <svg class="h-4 w-4 text-[#64748B]" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    Configuración
+                                </a>
+
+                                {{-- Cerrar sesión --}}
+                                <form method="POST" action="{{ route('logout') }}" class="m-0" data-confirmar="¿Deseas cerrar la sesión actual?">
+                                    @csrf
+                                    <button type="submit" class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-status-bad-fg transition-colors hover:bg-status-bad-bg/60">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0110.5 3h6a2.25 2.25 0 012.25 2.25v13.5A2.25 2.25 0 0116.5 21h-6a2.25 2.25 0 01-2.25-2.25V15m-3 0l-3-3m0 0l3-3m-3 3H15" />
+                                        </svg>
+                                        Cerrar sesión
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -237,6 +286,33 @@
                 if (e.key === 'Escape' && !notificacionesPanel.classList.contains('hidden')) {
                     notificacionesPanel.classList.add('hidden');
                     notificacionesBtn.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+
+        // Menú de perfil (top-bar)
+        const perfilBtn = document.getElementById('perfil-btn');
+        const perfilPanel = document.getElementById('perfil-panel');
+
+        if (perfilBtn && perfilPanel) {
+            perfilBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const abierto = !perfilPanel.classList.contains('hidden');
+                perfilPanel.classList.toggle('hidden', abierto);
+                perfilBtn.setAttribute('aria-expanded', String(!abierto));
+            });
+
+            document.addEventListener('click', (e) => {
+                if (perfilPanel.classList.contains('hidden')) return;
+                if (perfilPanel.contains(e.target) || perfilBtn.contains(e.target)) return;
+                perfilPanel.classList.add('hidden');
+                perfilBtn.setAttribute('aria-expanded', 'false');
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !perfilPanel.classList.contains('hidden')) {
+                    perfilPanel.classList.add('hidden');
+                    perfilBtn.setAttribute('aria-expanded', 'false');
                 }
             });
         }
