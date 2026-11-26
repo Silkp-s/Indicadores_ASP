@@ -24,7 +24,7 @@
                     class="h-full w-full object-contain"
                 >
             </div>
-            <span class="text-sm font-semibold tracking-wide text-white">Adminitración de Salud</span>
+            <span class="text-sm font-semibold tracking-wide text-white">Administración de Salud</span>
         </div>
 
         <div class="relative max-w-md">
